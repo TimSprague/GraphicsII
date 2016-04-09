@@ -6,6 +6,8 @@
 #include "XTime.h"
 #include <DirectXMath.h>
 #include <atlbase.h>
+#include <algorithm>
+#include <vector>
 using namespace DirectX;
 using namespace std;
 
@@ -128,7 +130,7 @@ XMMATRIX VS_WorldStarMatrix{
 	1,0,0,0,
 	0,1,0,0,
 	0,0,1,0,
-	10,10,5,1
+	5,5,5,1
 };
 XMMATRIX VS_ViewMatrix{
 	1,0,0,0,
