@@ -21,9 +21,6 @@
     <ClInclude Include="faceDiff.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Math.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="XTime.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -45,5 +42,7 @@
   <ItemGroup>
     <FxCompile Include="Trivial_PS.hlsl" />
     <FxCompile Include="Trivial_VS.hlsl" />
+    <FxCompile Include="Star_VS.hlsl" />
+    <FxCompile Include="Star_PS.hlsl" />
   </ItemGroup>
 </Project>

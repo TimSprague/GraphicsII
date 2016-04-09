@@ -124,6 +124,12 @@ XMMATRIX VS_WorldMatrix{
 	0,0,1,0,
 	0,0,5,1
 };
+XMMATRIX VS_WorldStarMatrix{
+	1,0,0,0,
+	0,1,0,0,
+	0,0,1,0,
+	10,10,5,1
+};
 XMMATRIX VS_ViewMatrix{
 	1,0,0,0,
 	0,1,0,0,

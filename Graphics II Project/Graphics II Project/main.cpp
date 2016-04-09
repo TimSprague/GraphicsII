@@ -21,6 +21,8 @@
 #pragma comment (lib,"d3d11.lib")
 #include "Trivial_VS.csh"
 #include "Trivial_PS.csh"
+#include "Star_VS.csh"
+#include "Star_PS.csh"
 #include "Cube.h"
 #include "faceDiff.h"
 
@@ -50,12 +52,14 @@ class DEMO_APP
 	IDXGISwapChain *swapchain = {};                   // pointer to the swap chain interface
 	D3D11_VIEWPORT viewport;
 	ID3D11InputLayout *input = {};                    // pointer to the direct3d input
+	ID3D11InputLayout *starInput = {};                // pointer to the direct3d input for the star
 
 	// TODO: PART 2 STEP 2
 	
-	ID3D11Buffer *vertexBuffer;                       // pointer to hold the information in Vram
+	ID3D11Buffer *vertexCubeBuffer, *vertexStarBuffer;// pointer to hold the information in Vram
 	unsigned int numVerts = 12;                      // number of verts in the circle
 	ID3D11Buffer *indexBuffer;                       // pointer to hold the points in order to draw
+	ID3D11Buffer *starIndexBuffer;                   // pointer to hold the points in order of the star
 	ID3D11Texture2D *depthStencil = NULL;            // pointer to the "depth buffer"
 	ID3D11DepthStencilView *depthStencilView;        // the depth stencil
 
@@ -63,6 +67,8 @@ class DEMO_APP
 	
 	ID3D11VertexShader *vertexShader;                // pointer to the vertexShader
 	ID3D11PixelShader *pixelShader;                  // pointer to the pixelShader
+	ID3D11VertexShader *StarVertexShader;
+	ID3D11PixelShader *StarPIxelShader;
 
 	// BEGIN PART 3
 	// TODO: PART 3 STEP 1
@@ -74,6 +80,7 @@ class DEMO_APP
 	// TODO: PART 3 STEP 2b
 	
 	OBJECT_TO_VRAM star;
+	OBJECT_TO_VRAM Cube;
 	SCENE_TO_VRAM camera;
 
 	// TODO: PART 3 STEP 4a
@@ -154,10 +161,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	// must release the image buffer to release threads used by the COM object
 	imageBackBuffer->Release();
 
-
-	
-	
-	// TODO: PART 1 STEP 5
 	
 	// zero out the struct for viewport
 	ZeroMemory(&viewport, sizeof(D3D11_VIEWPORT));
@@ -168,10 +171,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	viewport.MinDepth = 0;
 	context->RSSetViewports(1, &viewport);
 
-	// TODO: PART 2 STEP 3a
-	
-
-	// BEGIN PART 4
 	// TODO: PART 4 STEP 1
 #pragma region triangleStuff
 
@@ -296,7 +295,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	
     // TODO: PART 2 STEP 3c
 	D3D11_SUBRESOURCE_DATA subTriData = {};
-	subTriData.pSysMem = Cube_data;
+	subTriData.pSysMem = triangleCombo;
 	subTriData.SysMemPitch = 0;
 	subTriData.SysMemSlicePitch = 0;
 
@@ -309,6 +308,11 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	indexData.pSysMem = Cube_indicies;
 	indexData.SysMemPitch = 0;
 	indexData.SysMemSlicePitch = 0;
+
+	D3D11_SUBRESOURCE_DATA triangleindexData;
+	triangleindexData.pSysMem = indexOrder;
+	triangleindexData.SysMemPitch = 0;
+	triangleindexData.SysMemSlicePitch = 0;
 
 	D3D11_SUBRESOURCE_DATA subTextureData[faceDiff_numlevels] = {};
 	for (int i = 0; i < faceDiff_numlevels; i++)
@@ -326,9 +330,9 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	// TODO: PART 2 STEP 3d
 	
 	// the device is the d3d11 device created earlier used to create all the buffer
-	device->CreateBuffer(&triangleBufferDesc, &subTriData, &vertexBuffer);
-	device->CreateBuffer(&indexBufferDesc, &subTriData, &vertexBuffer);
-	device->CreateBuffer(&cubeBufferDesc, &subData, &vertexBuffer);
+	device->CreateBuffer(&triangleBufferDesc, &subTriData, &vertexStarBuffer);
+	device->CreateBuffer(&indexBufferDesc, &triangleindexData, &starIndexBuffer);
+	device->CreateBuffer(&cubeBufferDesc, &subData, &vertexCubeBuffer);
 	device->CreateBuffer(&cubeIndexBufferDesc, &indexData, &indexBuffer);
 	device->CreateTexture2D(&descDepth, NULL, &depthStencil);
 	device->CreateDepthStencilView(depthStencil, &descDSV, &depthStencilView);
@@ -336,14 +340,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	//device->CreateBuffer(&textureDesc, subTextureData, &textureBuffer);
 	device->CreateShaderResourceView(texturesArray, nullptr, &SRV);
 
-
-	// TODO: PART 5 STEP 2a
-
-	// TODO: PART 5 STEP 2b
-	
-	// TODO: PART 5 STEP 3
-		
-	// TODO: PART 2 STEP 5
 	// ADD SHADERS TO PROJECT, SET BUILD OPTIONS & COMPILE
 
 
@@ -352,6 +348,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	
 	device->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), nullptr, &vertexShader);
 	device->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), nullptr, &pixelShader);
+	device->CreateVertexShader(Star_VS, sizeof(Star_VS), nullptr, &StarVertexShader);
+	device->CreatePixelShader(Star_PS, sizeof(Star_PS), nullptr, &StarPIxelShader);
 
 	// TODO: PART 2 STEP 8a
 	
@@ -359,12 +357,18 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	{
 		{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,D3D11_APPEND_ALIGNED_ELEMENT,D3D11_INPUT_PER_VERTEX_DATA,0},
 		{ "UV",0,DXGI_FORMAT_R32G32B32_FLOAT,0,D3D11_APPEND_ALIGNED_ELEMENT,D3D11_INPUT_PER_VERTEX_DATA,0 },
-		{"NORMAL",0,DXGI_FORMAT_R32G32B32_FLOAT,0,D3D11_APPEND_ALIGNED_ELEMENT,D3D11_INPUT_PER_VERTEX_DATA,0}
+		{"NORMAL",0,DXGI_FORMAT_R32G32B32_FLOAT,0,D3D11_APPEND_ALIGNED_ELEMENT,D3D11_INPUT_PER_VERTEX_DATA,0},
 	};
 
+	D3D11_INPUT_ELEMENT_DESC starLayout[] = 
+	{
+		{ "POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,D3D11_APPEND_ALIGNED_ELEMENT,D3D11_INPUT_PER_VERTEX_DATA,0 },
+		{ "COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,D3D11_APPEND_ALIGNED_ELEMENT,D3D11_INPUT_PER_VERTEX_DATA,0 }
+	};
 	// TODO: PART 2 STEP 8b
 	UINT num_elements = sizeof(vLayout) / sizeof(vLayout[0]);
 	device->CreateInputLayout(vLayout, ARRAYSIZE(vLayout), Trivial_VS, sizeof(Trivial_VS), &input);
+	device->CreateInputLayout(starLayout, ARRAYSIZE(starLayout), StarVertexShader, sizeof(StarVertexShader), &starInput);
 	
 	// TODO: PART 3 STEP 3
 
@@ -388,9 +392,10 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	device->CreateBuffer(&constbufferstuffScene, NULL, &ConstSceneBuffer);
 
 	// TODO: PART 3 STEP 4b
-	star.worldMatrix = VS_WorldMatrix;
+	Cube.worldMatrix = VS_WorldMatrix;
+	star.worldMatrix = VS_WorldStarMatrix;
 	camera.projectionMatrix = VS_ProjectionMatrix;
-	camera.viewMatrix = /*HackUrnverse(VS_ViewMatrix);*/XMMatrixInverse(NULL, VS_ViewMatrix);
+	camera.viewMatrix = XMMatrixInverse(NULL, VS_ViewMatrix);
 
 
 	device->CreateSamplerState(&sampleDesc,&sampleState);
@@ -403,19 +408,17 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 bool DEMO_APP::Run()
 {
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+	// this function call will set a breakpoint at the location of a leaked block
+	// set the parameter to the identifier for a leaked block
+	_CrtSetBreakAlloc(-1L);
+
 	timer.Signal();
 	// TODO: PART 4 STEP 2	
 
+	Cube.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(timer.Delta()), Cube.worldMatrix);
 	star.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(timer.Delta()), star.worldMatrix);
-	
-	// TODO: PART 4 STEP 3
-	
-	// TODO: PART 4 STEP 5
-	
-	// END PART 4
-
-	// TODO: PART 1 STEP 7a
-	
+		
 	// set the render target equal to the backbuffer for use bind one or more render targets atomically
 	// (number of render targets to set(usually 1), pointer to list of viewable objects, the depthstencilview(if null it is not bound))
 	//context->OMSetRenderTargets(1, &rtv, NULL);
@@ -542,7 +545,7 @@ bool DEMO_APP::Run()
 	
 	D3D11_MAPPED_SUBRESOURCE map;
 	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
-	memcpy(map.pData, &star, sizeof(OBJECT_TO_VRAM));
+	memcpy(map.pData, &Cube, sizeof(OBJECT_TO_VRAM));
 	context->Unmap(ConstObjectBuffer, 0);
 
 	camera.viewMatrix = /*HackUrnverse(VS_ViewMatrix);*/XMMatrixInverse(NULL, VS_ViewMatrix);
@@ -563,7 +566,7 @@ bool DEMO_APP::Run()
 	// triangle created
 	//UINT stride = sizeof(SIMPLE_VERTEX);
 	UINT offset = 0;
-	context->IASetVertexBuffers(0, 1, &vertexBuffer,&stride, &offset);
+	context->IASetVertexBuffers(0, 1, &vertexCubeBuffer,&stride, &offset);
 	context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
 	// TODO: PART 2 STEP 9b
@@ -584,6 +587,24 @@ bool DEMO_APP::Run()
 	// TODO: PART 2 STEP 10
 	
 	context->DrawIndexed(1692, 0, 0);
+
+	D3D11_MAPPED_SUBRESOURCE triMap;
+	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &triMap);
+	memcpy(triMap.pData, &star, sizeof(OBJECT_TO_VRAM));
+	context->Unmap(ConstObjectBuffer, 0);
+	// triangle created
+	UINT starstride = sizeof(SIMPLE_VERTEX);
+	UINT staroffset = 0;
+	context->IASetVertexBuffers(0, 1, &vertexStarBuffer, &starstride, &staroffset);
+	context->IASetIndexBuffer(starIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	//context->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	context->IASetInputLayout(starInput);
+	// set the shaders for the grid to be drawn
+	context->VSSetShader(StarVertexShader, NULL, 0);
+	context->PSSetShader(StarPIxelShader, NULL, 0);
+	// for the anti aliseing
+	//context->RSSetState(rasterizerState);
+	context->DrawIndexed(60, 0, 0);
 
 	// END PART 2
 
@@ -611,7 +632,7 @@ bool DEMO_APP::ShutDown()
 	SAFE_RELEASE(device);
 	SAFE_RELEASE(context);
 	SAFE_RELEASE(rtv);
-	SAFE_RELEASE(vertexBuffer);
+	//SAFE_RELEASE(vertexBuffer);
 	SAFE_RELEASE(vertexShader);
 	SAFE_RELEASE(pixelShader);
 	SAFE_RELEASE(input);
