@@ -13,10 +13,8 @@
 //************ INCLUDES & DEFINES ****************************
 //************************************************************
 
-#include <iostream>
 #include <d3d11.h>
-#include "Defines.h"
-
+//#include "Loader.h"
 // including the direct3D library file
 #pragma comment (lib,"d3d11.lib")
 #include "Trivial_VS.csh"
@@ -25,6 +23,7 @@
 #include "Star_PS.csh"
 #include "Cube.h"
 #include "faceDiff.h"
+#include "Model.h"
 
 
 #define BACKBUFFER_WIDTH	500
@@ -88,6 +87,11 @@ class DEMO_APP
 	ID3D11ShaderResourceView *SRV;
 	ID3D11SamplerState *sampleState;     // pointer for the sample
 
+	RGBA backcolor;
+	XMMATRIX VS_ViewMatrix = XMMatrixIdentity();
+
+	float Yscale = (1 / tanf((.5f*FOV)*(PI/180.0f))), zFar = FarPlane, zNear = NearPlane;
+	float Xscale = (Yscale*AspectRatio);
 public:
 	// BEGIN PART 2
 	// TODO: PART 2 STEP 1
@@ -214,6 +218,12 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #pragma endregion
 
+#pragma region model loading
+
+	Model goombaModel;
+	goombaModel.loadOBJ("../Graphics II Project/FuzzyGoomba/KEY_Fuzzy.ma", goombaModel.pos, goombaModel.uv, goombaModel.normal);
+
+#pragma endregion
 	// TODO: PART 2 STEP 3b
 
 	D3D11_BUFFER_DESC triangleBufferDesc;
@@ -392,10 +402,12 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	device->CreateBuffer(&constbufferstuffScene, NULL, &ConstSceneBuffer);
 
 	// TODO: PART 3 STEP 4b
-	Cube.worldMatrix = VS_WorldMatrix;
-	star.worldMatrix = VS_WorldStarMatrix;
-	camera.projectionMatrix = VS_ProjectionMatrix;
-	camera.viewMatrix = XMMatrixInverse(NULL, VS_ViewMatrix);
+	Cube.worldMatrix =  XMMatrixIdentity();
+	Cube.worldMatrix = XMMatrixTranslation(0, 0, 5);
+	star.worldMatrix = XMMatrixIdentity();
+	star.worldMatrix = XMMatrixTranslation(5, 5, 5);
+	camera.projectionMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(65),AspectRatio,zNear,zFar);
+	camera.viewMatrix = XMMatrixInverse(NULL, XMMatrixIdentity());
 
 
 	device->CreateSamplerState(&sampleDesc,&sampleState);
@@ -548,7 +560,7 @@ bool DEMO_APP::Run()
 	memcpy(map.pData, &Cube, sizeof(OBJECT_TO_VRAM));
 	context->Unmap(ConstObjectBuffer, 0);
 
-	camera.viewMatrix = /*HackUrnverse(VS_ViewMatrix);*/XMMatrixInverse(NULL, VS_ViewMatrix);
+	camera.viewMatrix = XMMatrixInverse(NULL, VS_ViewMatrix);
 
 	D3D11_MAPPED_SUBRESOURCE map2;
 	context->Map(ConstSceneBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map2);
