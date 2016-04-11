@@ -15,49 +15,11 @@ using namespace std;
 
 #define RASTER_HEIGHT 500
 #define RASTER_WIDTH 500
-#define RASTER_WIDTH_HALF (RASTER_WIDTH/2)
-#define RASTER_HEIGHT_HALF (RASTER_HEIGHT/2)
-#define NUMPIXELS ((RASTER_WIDTH)*(RASTER_HEIGHT))
 #define PI 3.14159f
 #define FOV 65
 #define AspectRatio ((float)RASTER_WIDTH/RASTER_HEIGHT)
 #define NearPlane 0.1f
 #define FarPlane 100.0f
-
-// point x,y
-struct Points
-{
-	float x;
-	float y;
-};
-
-// vector x,y,z
-struct Vector
-{
-	float x;
-	float y;
-	float z;
-	float w;
-};
-
-// array 0=x,1=y,2=z,3=w
-struct Vertex
-{
-	float xyzw[4];
-	float color;
-	float u, v;
-};
-
-struct SCREEN_XY
-{
-	unsigned int x;
-	unsigned int y;
-};
-// a pixel
-struct  A_PIXEL
-{
-	float color;
-};
 
 struct RGBA
 {
@@ -72,6 +34,14 @@ struct SIMPLE_VERTEX
 {
 	float posXYZ[3];
 	float rgba[4];
+};
+
+struct COMPLEX_VERTEX
+{
+	float3 pos;
+	float3 uv;
+	float3 normal;
+	float3 color;
 };
 
 struct SEND_TO_RAM

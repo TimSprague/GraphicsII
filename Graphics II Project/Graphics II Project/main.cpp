@@ -55,11 +55,12 @@ class DEMO_APP
 
 	// TODO: PART 2 STEP 2
 	
-	ID3D11Buffer *vertexCubeBuffer, *vertexStarBuffer, *vertexMiniGunBuffer;// pointer to hold the information in Vram
+	ID3D11Buffer *vertexCubeBuffer, *vertexStarBuffer, *vertexMiniGunBuffer, *vertexGroundBuffer;// pointer to hold the information in Vram
 	unsigned int numVerts = 12;                      // number of verts in the circle
 	ID3D11Buffer *indexBuffer;                       // pointer to hold the points in order to draw
 	ID3D11Buffer *starIndexBuffer;                   // pointer to hold the points in order of the star
 	ID3D11Buffer *MinigunIndexBuffer;                // pointer to hold the points in order of the gun
+	ID3D11Buffer *groundIndexBuffer;                 // pointer to hold the points in order of the ground
 	ID3D11Texture2D *depthStencil = NULL;            // pointer to the "depth buffer"
 	ID3D11DepthStencilView *depthStencilView;        // the depth stencil
 
@@ -83,7 +84,9 @@ class DEMO_APP
 	OBJECT_TO_VRAM star;
 	OBJECT_TO_VRAM Cube;
 	OBJECT_TO_VRAM miniGun;
+	OBJECT_TO_VRAM ground;
 	SCENE_TO_VRAM camera;
+
 	Model miniGunModel;
 
 	// TODO: PART 3 STEP 4a
@@ -472,7 +475,15 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	star.worldMatrix = XMMatrixIdentity();
 	star.worldMatrix = XMMatrixTranslation(-5, 5, 5);
 	miniGun.worldMatrix = XMMatrixIdentity();
-	miniGun.worldMatrix = XMMatrixTranslation(5, 5, 5);
+	// scaling from the identity down to .05 to make it smaller
+	miniGun.worldMatrix.r[0].m128_f32[0] = .05f;
+	miniGun.worldMatrix.r[1].m128_f32[1] = .05f;
+	miniGun.worldMatrix.r[2].m128_f32[2] = .05f;
+	// set the position of xyz 
+	miniGun.worldMatrix.r[3].m128_f32[0] = 5;
+	miniGun.worldMatrix.r[3].m128_f32[1] = 5;
+	miniGun.worldMatrix.r[3].m128_f32[2] = 5;
+	//miniGun.worldMatrix = XMMatrixTranslation(5, 5, 5);
 	camera.projectionMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(65),AspectRatio,zNear,zFar);
 	camera.viewMatrix = XMMatrixInverse(NULL, XMMatrixIdentity());
 
@@ -688,9 +699,9 @@ bool DEMO_APP::Run()
 	context->DrawIndexed(60, 0, 0);
 
 	D3D11_MAPPED_SUBRESOURCE gunMap;
-	context->Map(ConstModelBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &gunMap);
-	memcpy(gunMap.pData, &miniGun, sizeof(Model::vertex_Normal));
-	context->Unmap(ConstModelBuffer, 0);
+	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &gunMap);
+	memcpy(gunMap.pData, &miniGun, sizeof(OBJECT_TO_VRAM));
+	context->Unmap(ConstObjectBuffer, 0);
 	UINT gunstride = sizeof(Model::vertex_Normal);
 	UINT gunOffset = 0;
 	context->IASetVertexBuffers(0, 1, &vertexMiniGunBuffer, &gunstride, &gunOffset);

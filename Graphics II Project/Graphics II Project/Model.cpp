@@ -6,15 +6,6 @@ Model::Model()
 
 }
 
-Model::Model(float3 _pos, float3 _uv, float3 _normal, float3 _color)
-{
-	/*pos = _pos;
-	uv = _uv;
-	normal = _normal;
-	color = _color;*/
-}
-
-
 Model::~Model()
 {
 }
@@ -80,15 +71,6 @@ bool Model::loadOBJ(const char *path, vector<float3> & out_verticies, vector<flo
 			normalIndices.push_back(normalIndex[2]);
 		}
 	}
-	//out_verticies.resize(vertexIndices.size());
-	//out_uvs.resize(vertexIndices.size());
-	//out_normals.resize(vertexIndices.size());
-	//for (unsigned int i = 0; vertexIndices.size(); ++i)
-	//{
-	//	out_verticies[i] = temp_vertices[vertexIndices[i]];
-	//	out_uvs[i] = temp_uvs[uvIndices[i]];
-	//	out_normals[i] = temp_normals[normalIndices[i]];
-	//}
 	for (unsigned int i = 0; i < vertexIndices.size(); i++)
 	{
 		unsigned int VertexIndex = vertexIndices[i];
@@ -126,11 +108,6 @@ bool Model::loadOBJ(const char *path, vector<float3> & out_verticies, vector<flo
 				// break to go to the next pos in the list
 				break;
 			}
-			//else
-			//{
-			//	// set unique to true
-			//	unique = true;
-			//}
 		}
 
 		if (unique)
@@ -146,13 +123,5 @@ bool Model::loadOBJ(const char *path, vector<float3> & out_verticies, vector<flo
 			uniqueVerts.push_back(tempUniqueVertex);
 		}
 	}
-
-	//ofstream bout;
-	//bout.open(path, ios_base::binary | ios_base::app);
-	//if (bout.is_open())
-	//{
-	//	bout.write((char*)&out_verticies, sizeof(Vector));
-	//	bout.close;
-	//}
 
 }
