@@ -55,10 +55,11 @@ class DEMO_APP
 
 	// TODO: PART 2 STEP 2
 	
-	ID3D11Buffer *vertexCubeBuffer, *vertexStarBuffer;// pointer to hold the information in Vram
+	ID3D11Buffer *vertexCubeBuffer, *vertexStarBuffer, *vertexMiniGunBuffer;// pointer to hold the information in Vram
 	unsigned int numVerts = 12;                      // number of verts in the circle
 	ID3D11Buffer *indexBuffer;                       // pointer to hold the points in order to draw
 	ID3D11Buffer *starIndexBuffer;                   // pointer to hold the points in order of the star
+	ID3D11Buffer *MinigunIndexBuffer;                // pointer to hold the points in order of the gun
 	ID3D11Texture2D *depthStencil = NULL;            // pointer to the "depth buffer"
 	ID3D11DepthStencilView *depthStencilView;        // the depth stencil
 
@@ -74,13 +75,16 @@ class DEMO_APP
 
 	ID3D11Buffer *ConstObjectBuffer;                         // pointer to the constant buffer holding the world
 	ID3D11Buffer *ConstSceneBuffer;                          // pointer to the scene holding view and projection
+	ID3D11Buffer *ConstModelBuffer;
 	
 	XTime timer;
 	// TODO: PART 3 STEP 2b
 	
 	OBJECT_TO_VRAM star;
 	OBJECT_TO_VRAM Cube;
+	OBJECT_TO_VRAM miniGun;
 	SCENE_TO_VRAM camera;
+	Model miniGunModel;
 
 	// TODO: PART 3 STEP 4a
 	ID3D11Texture2D *texturesArray;     // pointer to the array that holds the number of miplevels
@@ -220,13 +224,14 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #pragma region model loading
 
-	Model goombaModel;
-	goombaModel.loadOBJ("../Graphics II Project/FuzzyGoomba/KEY_Fuzzy.ma", goombaModel.pos, goombaModel.uv, goombaModel.normal);
+                                                                                                //14967             14967             14967
+	miniGunModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/DP GUN 1.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
 
 #pragma endregion
 	// TODO: PART 2 STEP 3b
 
 	D3D11_BUFFER_DESC triangleBufferDesc;
+	ZeroMemory(&triangleBufferDesc, sizeof(D3D11_BUFFER_DESC));
 	triangleBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	triangleBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	triangleBufferDesc.CPUAccessFlags = NULL;
@@ -234,10 +239,19 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	triangleBufferDesc.ByteWidth = sizeof(SIMPLE_VERTEX)*12;
 	triangleBufferDesc.MiscFlags = NULL;
 	triangleBufferDesc.StructureByteStride = sizeof(SIMPLE_VERTEX);
-
-
+    // gun buffer
+	D3D11_BUFFER_DESC gunBufferDesc;
+	ZeroMemory(&gunBufferDesc, sizeof(D3D11_BUFFER_DESC));
+	gunBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	gunBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	gunBufferDesc.CPUAccessFlags = NULL;
+	// total size of the buffer
+	gunBufferDesc.ByteWidth = sizeof(Model::vertex_Normal) * (UINT)miniGunModel.uniqueVerts.size();
+	gunBufferDesc.MiscFlags = NULL;
+	//gunBufferDesc.StructureByteStride = sizeof(Model);
 
 	D3D11_BUFFER_DESC cubeBufferDesc;
+	ZeroMemory(&cubeBufferDesc, sizeof(D3D11_BUFFER_DESC));
 	cubeBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	cubeBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	cubeBufferDesc.CPUAccessFlags = NULL;
@@ -246,8 +260,9 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	cubeBufferDesc.MiscFlags = NULL;
 	cubeBufferDesc.StructureByteStride = sizeof(OBJ_VERT);
 
-
+	// triangle indexbuffer
 	D3D11_BUFFER_DESC indexBufferDesc;
+	ZeroMemory(&indexBufferDesc, sizeof(D3D11_BUFFER_DESC));
 	indexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	indexBufferDesc.CPUAccessFlags = NULL;
@@ -255,7 +270,19 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	indexBufferDesc.MiscFlags = NULL;
 	indexBufferDesc.StructureByteStride = sizeof(UINT);
 
+	// gun indexbuffer
+	D3D11_BUFFER_DESC gunIndexBufferDesc;
+	ZeroMemory(&gunIndexBufferDesc, sizeof(D3D11_BUFFER_DESC));
+	gunIndexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	gunIndexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	gunIndexBufferDesc.CPUAccessFlags = NULL;
+	gunIndexBufferDesc.ByteWidth = sizeof(UINT) *(UINT)miniGunModel.uniqueIndexBuffer.size();
+	gunIndexBufferDesc.MiscFlags = NULL;
+	gunIndexBufferDesc.StructureByteStride = sizeof(UINT);
+
+	// cube index buffer
 	D3D11_BUFFER_DESC cubeIndexBufferDesc;
+	ZeroMemory(&cubeIndexBufferDesc, sizeof(D3D11_BUFFER_DESC));
 	cubeIndexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	cubeIndexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	cubeIndexBufferDesc.CPUAccessFlags = NULL;
@@ -290,6 +317,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	textureDesc.MiscFlags = 0;
 
 	
+	
 	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
 	//ZeroMemory(&descDSV, sizeof(descDSV));
 	descDSV.Format = DXGI_FORMAT_D32_FLOAT;
@@ -302,12 +330,39 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	sampleDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
 	sampleDesc.ComparisonFunc = D3D11_COMPARISON_GREATER;
 	sampleDesc.MaxLOD = D3D11_FLOAT32_MAX;
-	
+
     // TODO: PART 2 STEP 3c
 	D3D11_SUBRESOURCE_DATA subTriData = {};
 	subTriData.pSysMem = triangleCombo;
 	subTriData.SysMemPitch = 0;
 	subTriData.SysMemSlicePitch = 0;
+
+	//float3 tempvert[8];
+	Model::vertex_Normal tempvert[2599];
+	unsigned int vertsize = miniGunModel.uniqueVerts.size();
+//	tempvert = new float3[vertsize];
+	for (unsigned int i = 0; i < miniGunModel.uniqueVerts.size(); ++i)
+	{
+		tempvert[i] = miniGunModel.uniqueVerts[i];
+	}
+
+	D3D11_SUBRESOURCE_DATA subMiniGunData = {};
+	subMiniGunData.pSysMem = tempvert;
+	subMiniGunData.SysMemPitch = 0;
+	subMiniGunData.SysMemSlicePitch = 0;
+
+	unsigned int tempIndices[14967];
+	unsigned int size = miniGunModel.uniqueIndexBuffer.size();
+	//tempIndices = new UINT[size];
+	for (unsigned int i = 0; i < miniGunModel.uniqueIndexBuffer.size(); i++)
+	{
+		tempIndices[i] = miniGunModel.uniqueIndexBuffer[i];
+	}
+
+	D3D11_SUBRESOURCE_DATA minigunIndexData = {};
+	minigunIndexData.pSysMem = tempIndices;
+	minigunIndexData.SysMemPitch = 0;
+	minigunIndexData.SysMemSlicePitch = 0;
 
 	D3D11_SUBRESOURCE_DATA subData = {};
 	subData.pSysMem = Cube_data;
@@ -332,18 +387,18 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 		subTextureData[i].SysMemSlicePitch = 0;
 	}
 
-
-	// buffer for the texture
-	//ID3D11Buffer *textureBuffer = 0;
-
-
 	// TODO: PART 2 STEP 3d
 	
 	// the device is the d3d11 device created earlier used to create all the buffer
 	device->CreateBuffer(&triangleBufferDesc, &subTriData, &vertexStarBuffer);
 	device->CreateBuffer(&indexBufferDesc, &triangleindexData, &starIndexBuffer);
+
 	device->CreateBuffer(&cubeBufferDesc, &subData, &vertexCubeBuffer);
 	device->CreateBuffer(&cubeIndexBufferDesc, &indexData, &indexBuffer);
+
+	device->CreateBuffer(&gunBufferDesc, &subMiniGunData, &vertexMiniGunBuffer);
+	device->CreateBuffer(&gunIndexBufferDesc, &minigunIndexData, &MinigunIndexBuffer);
+
 	device->CreateTexture2D(&descDepth, NULL, &depthStencil);
 	device->CreateDepthStencilView(depthStencil, &descDSV, &depthStencilView);
 	device->CreateTexture2D(&textureDesc, subTextureData, &texturesArray);
@@ -351,8 +406,9 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	device->CreateShaderResourceView(texturesArray, nullptr, &SRV);
 
 	// ADD SHADERS TO PROJECT, SET BUILD OPTIONS & COMPILE
-
-
+	//delete tempvert;
+	//delete tempIndices;
+	//
 
 	// TODO: PART 2 STEP 7
 	
@@ -376,9 +432,9 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 		{ "COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,D3D11_APPEND_ALIGNED_ELEMENT,D3D11_INPUT_PER_VERTEX_DATA,0 }
 	};
 	// TODO: PART 2 STEP 8b
-	UINT num_elements = sizeof(vLayout) / sizeof(vLayout[0]);
+	//UINT num_elements = sizeof(vLayout) / sizeof(vLayout[0]);
 	device->CreateInputLayout(vLayout, ARRAYSIZE(vLayout), Trivial_VS, sizeof(Trivial_VS), &input);
-	device->CreateInputLayout(starLayout, ARRAYSIZE(starLayout), StarVertexShader, sizeof(StarVertexShader), &starInput);
+	device->CreateInputLayout(starLayout, ARRAYSIZE(starLayout), Star_VS, sizeof(Star_VS), &starInput);
 	
 	// TODO: PART 3 STEP 3
 
@@ -398,14 +454,25 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	constbufferstuffScene.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	constbufferstuffScene.StructureByteStride = sizeof(float);
 
+	D3D11_BUFFER_DESC constbufferstuffModel;
+	ZeroMemory(&constbufferstuffModel, sizeof(D3D11_BUFFER_DESC));
+	constbufferstuffModel.ByteWidth = sizeof(Model);
+	constbufferstuffModel.Usage = D3D11_USAGE_DYNAMIC;
+	constbufferstuffModel.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	constbufferstuffModel.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	constbufferstuffModel.StructureByteStride = sizeof(float);
+
 	device->CreateBuffer(&constbufferstuff, NULL, &ConstObjectBuffer);
 	device->CreateBuffer(&constbufferstuffScene, NULL, &ConstSceneBuffer);
-
+	device->CreateBuffer(&constbufferstuffModel, NULL, &ConstModelBuffer);
+	
 	// TODO: PART 3 STEP 4b
 	Cube.worldMatrix =  XMMatrixIdentity();
 	Cube.worldMatrix = XMMatrixTranslation(0, 0, 5);
 	star.worldMatrix = XMMatrixIdentity();
-	star.worldMatrix = XMMatrixTranslation(5, 5, 5);
+	star.worldMatrix = XMMatrixTranslation(-5, 5, 5);
+	miniGun.worldMatrix = XMMatrixIdentity();
+	miniGun.worldMatrix = XMMatrixTranslation(5, 5, 5);
 	camera.projectionMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(65),AspectRatio,zNear,zFar);
 	camera.viewMatrix = XMMatrixInverse(NULL, XMMatrixIdentity());
 
@@ -430,6 +497,7 @@ bool DEMO_APP::Run()
 
 	Cube.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(timer.Delta()), Cube.worldMatrix);
 	star.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(timer.Delta()), star.worldMatrix);
+	//miniGun.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(timer.Delta()), miniGun.worldMatrix);
 		
 	// set the render target equal to the backbuffer for use bind one or more render targets atomically
 	// (number of render targets to set(usually 1), pointer to list of viewable objects, the depthstencilview(if null it is not bound))
@@ -571,6 +639,7 @@ bool DEMO_APP::Run()
 	// 0 and 1 corelate to the buffer 0 or 1 in the vertex shader HLSL
 	context->VSSetConstantBuffers(0, 1, &ConstObjectBuffer);
 	context->VSSetConstantBuffers(1, 1, &ConstSceneBuffer);
+	context->VSSetConstantBuffers(2, 1, &ConstModelBuffer);
 
 	// TODO: PART 2 STEP 9a
 	// cube from header
@@ -617,6 +686,19 @@ bool DEMO_APP::Run()
 	// for the anti aliseing
 	//context->RSSetState(rasterizerState);
 	context->DrawIndexed(60, 0, 0);
+
+	D3D11_MAPPED_SUBRESOURCE gunMap;
+	context->Map(ConstModelBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &gunMap);
+	memcpy(gunMap.pData, &miniGun, sizeof(Model::vertex_Normal));
+	context->Unmap(ConstModelBuffer, 0);
+	UINT gunstride = sizeof(Model::vertex_Normal);
+	UINT gunOffset = 0;
+	context->IASetVertexBuffers(0, 1, &vertexMiniGunBuffer, &gunstride, &gunOffset);
+	context->IASetIndexBuffer(MinigunIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	context->IASetInputLayout(input);
+	context->VSSetShader(vertexShader, NULL, 0);
+	context->PSSetShader(pixelShader, NULL, 0);
+	context->DrawIndexed(miniGunModel.uniqueIndexBuffer.size(), 0, 0);
 
 	// END PART 2
 
