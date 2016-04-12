@@ -143,6 +143,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Cube.h" />
+    <ClInclude Include="DDSTextureLoader.h" />
     <ClInclude Include="Defines.h" />
     <ClInclude Include="faceDiff.h" />
     <ClInclude Include="Model.h" />
@@ -153,6 +154,7 @@
     <Image Include="faceDiff.tga" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DDSTextureLoader.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="XTime.cpp" />

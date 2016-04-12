@@ -10,47 +10,43 @@ texture2D baseTexture : register(t0); // first texture being passed
 SamplerState filters : register(s0); // filter 0 using CLAMP, filter 1 using WRAP
 
 // struct for spotlight, pos,color,direction,coneratio 
-struct SPOT_LIGHT 
-{
-	float4 positionCoordinate: SV_POSITION;
-	float4 color : COLOR;
-	float4 direction : SV_DIRECTION;
-	float4 coneRatio : RATIO;
-};
-
-// struct for directional light pos,color 
-struct DIRECTIONAL_LIGHT 
-{
-	float4 direction :SV_DIRECTION;
-	float4 color: COLOR;
-};
-
-// struct for point light pos,color,radius 
-struct POINT_LIGHT
-{
-	float4 positionCoordinate : SV_POSITION;
-	float4 color: COLOR;
-	float4 radius: RADIUS;
-};
-
 cbuffer spotLight : register(b0)
 {
-
+	float4 spotLightPosition;
+	float4 spotLightColor;
+	float4 spotLightDirection;
+	float4 spotLightConeRatio;
 }
+// struct for directional light pos,color 
 cbuffer	directionalLight : register(b1)
 {
-
+	float4 directionalLightDirection;
+	float4 directionalLightColr;
 }
+// struct for point light pos,color,radius 
 cbuffer pointLight : register(b2)
 {
-
+	float4 pointLightPosition;
+	float4 pointLightColor;
+	float4 pointLightRadius;
 }
 
-float4 main(INPUT_PIXEL) : SV_TARGET
+float4 main(INPUT_PIXEL input) : SV_TARGET
 {
+	// get the color from the texture  AKA SURFACE COLOR
+	float4 baseColor = baseTexture.Sample(filters, input.uv.xy);
+
+
 	// directional light formula
-	//                              light direction its facing    surface normal
-	float4 LIGHTRATIO = CLAMP(DOT(-DIRECTIONAL_LIGHT.direction,INPUT_PIXEL.normal));
-	//                                lightcolor           surfacecolor
-	float4 RESULT = LIGHTRATIO * DIRECTIONAL_LIGHT.color * SURFACECOLOR;
+	//                                     light direction its facing    surface normal
+	float4 DIRECTIONALLIGHTRATIO = CLAMP(DOT(-directionalLightDirection, input.normal));
+	//                                light color           surface color
+	float4 DIRECTIONALRESULT = DIRECTIONALLIGHTRATIO * directionalLightColor * basecolor;
+	//                                       light position         surface position
+	float4 POINTLIGHTDIRECTION = NORMALIZE(pointLightPosition - input.projectedCoordinate);
+	//                                  direction light shines   surface normal
+	float4 POINTLIGHTRATIO = CLMAP(DOT(POINTLIGHTDIRECTION, input.normal));
+	//                           light ratio      light color     surface color
+	float4 POINTLIGHTRESULT = (POINTLIGHTRATIO * pointLightColor * baseColor);
+
 }

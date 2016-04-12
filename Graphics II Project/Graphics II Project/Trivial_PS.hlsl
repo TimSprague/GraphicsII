@@ -22,7 +22,8 @@ SamplerState filters : register(s0); // filter 0 using CLAMP, filter 1 using WRA
 float4 main(INPUT_PIXEL input): SV_TARGET
 {
 	// green red alpha blue = grab
-	float4 baseColor = baseTexture.Sample(filters, input.uv.xy).grab; // get base color
+	//float4 baseColor = baseTexture.Sample(filters, input.uv.xy).grab; // get base color
+	float4 baseColor = baseTexture.Sample(filters, input.uv.xy); // get base color
 
 	//float4 detailColor = detailTexture.Sample(filters[1], detailUV); // get detail effect
 	//float4 finalColor = float4(lerp(baseColor.rgb, detailColor.rgb, detailColor.a), baseColor.a);
