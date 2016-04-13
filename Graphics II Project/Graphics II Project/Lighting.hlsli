@@ -14,7 +14,7 @@ cbuffer spotLight : register(b0)
 {
 	float4 spotLightPosition;
 	float4 spotLightColor;
-	float4 spotLightDirection;
+	float4 spotLightConeDirection;
 	float4 spotLightConeRatio;
 }
 // struct for directional light pos,color 
@@ -48,5 +48,25 @@ float4 main(INPUT_PIXEL input) : SV_TARGET
 	float4 POINTLIGHTRATIO = CLMAP(DOT(POINTLIGHTDIRECTION, input.normal));
 	//                           light ratio      light color     surface color
 	float4 POINTLIGHTRESULT = (POINTLIGHTRATIO * pointLightColor * baseColor);
+	//                                      light position        surface position
+	float4 SPOTLIGHTDIRECTION = NORMALIZE(spotLightPosition - input.projectedCoordinate);
+	//                                          light direction        cone direction
+	float4 SPOTLIGHTSURFACERATIO = CLAMP(DOT(-SPOTLIGHTDIRECTION, spotLightConeDirection));
+	//                               surface ratio           cone ratio
+	float4 SPOTLIGHTSPOTFACTOR = (SPOTLIGHTSURFACERATIO > spotlightConeRatio) ? 1 : 0;
+	//                                  light direction   surface normal
+	float4 SPOTLIGHTRATIO = CLAMP(DOT(SPOTLIGHTDIRECTION, input.normal));
+	//                        spot light factor     light ratio     light color  surface color
+	float4 SPOTLIGHTRESULT = SPOTLIGHTSPOTFACTOR * SPOTLIGHTRATIO * input.color * baseColor;
+	//                                            
+	float4 POINTLIGHTATTENUATION = 1.0 - CLAMP(MAGNITUDE(pointLightPosition - input.projectedCoordinate) / 0.5f);
+	//
+	float4 SPOTLIGHTATTENUATION1 = 1.0 - CLAMP(MAGNITUDE(spotLightPosition - input.projectedCoordinate) / 0.5f);
+	//
+	float4 SPOTLIGHTATTENUATION2 = 1.0 - CLAMP((0.001f - SPOTLIGHTSURFACERATIO) / (0.001f - 0.999));
+	//
+	float4 TOTALATTENUATION = SPOTLIGHTATTENUATION1 * SPOTLIGHTATTENUATION2;
+
+	return saturate (CLAMP(spotLightColor + directionalLightColr + pointLightColor))
 
 }

@@ -24,7 +24,8 @@
 #include "Cube.h"
 #include "faceDiff.h"
 #include "Model.h"
-#include "DDSTextureLoader.h"
+
+
 
 
 #define BACKBUFFER_WIDTH	500
@@ -71,6 +72,7 @@ class DEMO_APP
 	ID3D11PixelShader *pixelShader;                  // pointer to the pixelShader
 	ID3D11VertexShader *StarVertexShader;
 	ID3D11PixelShader *StarPIxelShader;
+	ID3D11PixelShader *LightShader;
 
 	// BEGIN PART 3
 	// TODO: PART 3 STEP 1
@@ -86,6 +88,9 @@ class DEMO_APP
 	OBJECT_TO_VRAM miniGun;
 	OBJECT_TO_VRAM ground;
 	SCENE_TO_VRAM camera;
+	POINT_LIGHT PointLight;
+	SPOT_LIGHT SpotLight;
+	DIRECTIONAL_LIGHT DirectionalLight;
 
 	Model miniGunModel;
 	Model groundModel;
@@ -234,7 +239,9 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
                                                                                                 //14967             14967             14967
 	miniGunModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/DP GUN 1.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal); 
+	//miniGunModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/crate.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
 
+	
 	groundModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/Ground.obj", groundModel.pos, groundModel.uv, groundModel.normal);
 	//miniGunModel.loadOBJ("../Graphics II Project/Dragon/dragon1.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
 
@@ -327,10 +334,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 	textureDesc.CPUAccessFlags = 0;
 	textureDesc.MiscFlags = 0;
-
-	//D3D11_TEXTURE2D_DESC gunTextureDesc;
-
-	
 	
 	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
 	//ZeroMemory(&descDSV, sizeof(descDSV));
@@ -355,57 +358,28 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	triangleindexData.pSysMem = indexOrder;
 	triangleindexData.SysMemPitch = 0;
 	triangleindexData.SysMemSlicePitch = 0;
-
-	//float3 tempvert[8]; 2483 dragon      2599 gun
-	Model::vertex_Normal tempvert[2599];
-	//unsigned int vertsize = miniGunModel.uniqueVerts.size();
-//	tempvert = new float3[vertsize];
-	for (unsigned int i = 0; i < miniGunModel.uniqueVerts.size(); ++i)
-	{
-		tempvert[i] = miniGunModel.uniqueVerts[i];
-	}
-
+	
 	D3D11_SUBRESOURCE_DATA subMiniGunData = {};
-	subMiniGunData.pSysMem = tempvert;
+	subMiniGunData.pSysMem = miniGunModel.uniqueVerts.data();
 	subMiniGunData.SysMemPitch = 0;
 	subMiniGunData.SysMemSlicePitch = 0;
 
-	unsigned int tempIndices[14967]; // 14394 dragon       14967 gun
-	//unsigned int size = miniGunModel.uniqueIndexBuffer.size();
-	//tempIndices = new UINT[size];
-	for (unsigned int i = 0; i < miniGunModel.uniqueIndexBuffer.size(); i++)
-	{
-		tempIndices[i] = miniGunModel.uniqueIndexBuffer[i];
-	}
-
 	D3D11_SUBRESOURCE_DATA minigunIndexData = {};
-	minigunIndexData.pSysMem = tempIndices;
+	minigunIndexData.pSysMem = miniGunModel.uniqueIndexBuffer.data();
 	minigunIndexData.SysMemPitch = 0;
 	minigunIndexData.SysMemSlicePitch = 0;
 
-	Model::vertex_Normal tempGroundVert[4];
-	for (unsigned int i = 0; i < groundModel.uniqueVerts.size(); i++)
-	{
-		tempGroundVert[i] = groundModel.uniqueVerts[i];
-	}
-
 	D3D11_SUBRESOURCE_DATA groundSubData = {};
-	groundSubData.pSysMem = tempGroundVert;
+	groundSubData.pSysMem = groundModel.uniqueVerts.data();
 	groundSubData.SysMemPitch = 0;
 	groundSubData.SysMemSlicePitch = 0;
 
-	unsigned int tempGroundIndices[6]; 									
-	for (unsigned int i = 0; i < groundModel.uniqueIndexBuffer.size(); i++)
-	{
-		tempGroundIndices[i] = groundModel.uniqueIndexBuffer[i];
-	}
 	D3D11_SUBRESOURCE_DATA groundIndexData;
-	groundIndexData.pSysMem = tempGroundIndices;
+	groundIndexData.pSysMem = groundModel.uniqueIndexBuffer.data();
 	groundIndexData.SysMemPitch = 0;
 	groundIndexData.SysMemSlicePitch = 0;
 
 	
-
 	D3D11_SUBRESOURCE_DATA subTextureData[faceDiff_numlevels] = {};
 	for (int i = 0; i < faceDiff_numlevels; i++)
 	{
@@ -429,7 +403,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	device->CreateTexture2D(&descDepth, NULL, &depthStencil);
 	device->CreateDepthStencilView(depthStencil, &descDSV, &depthStencilView);
 	device->CreateTexture2D(&textureDesc, subTextureData, &texturesArray);
-	//device->CreateBuffer(&textureDesc, subTextureData, &textureBuffer);
 	device->CreateShaderResourceView(texturesArray, nullptr, &SRV);
 
 	// loading using the ddstexture
@@ -438,9 +411,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 
 	// ADD SHADERS TO PROJECT, SET BUILD OPTIONS & COMPILE
-	//delete tempvert;
-	//delete tempIndices;
-	//
 
 	// TODO: PART 2 STEP 7
 	
@@ -448,6 +418,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	device->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), nullptr, &pixelShader);
 	device->CreateVertexShader(Star_VS, sizeof(Star_VS), nullptr, &StarVertexShader);
 	device->CreatePixelShader(Star_PS, sizeof(Star_PS), nullptr, &StarPIxelShader);
+	//device->CreatePixelShader(, sizeof(Lighting), nullptr, &LightShader);
 
 	// TODO: PART 2 STEP 8a
 	
@@ -512,7 +483,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	miniGun.worldMatrix.r[3].m128_f32[0] = 0;
 	miniGun.worldMatrix.r[3].m128_f32[1] = 0;
 	miniGun.worldMatrix.r[3].m128_f32[2] = 8;
-	//miniGun.worldMatrix = XMMatrixTranslation(5, 5, 5);
 	camera.projectionMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(65),AspectRatio,zNear,zFar);
 	camera.viewMatrix = XMMatrixInverse(NULL, XMMatrixIdentity());
 	//miniGun.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(XMConvertToRadians(90)), miniGun.worldMatrix);
@@ -567,12 +537,12 @@ bool DEMO_APP::Run()
 
 	if (GetAsyncKeyState('W')) // move forward
 	{
-		XMVECTOR temp = { 0, 0, 1*timer.Delta(), camera.viewMatrix.r[3].m128_f32[3] };
+		XMVECTOR temp = { 0, 0, 10*timer.Delta(), camera.viewMatrix.r[3].m128_f32[3] };
 		camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), camera.viewMatrix);
 	}
 	if (GetAsyncKeyState('S')) // move backward
 	{
-		XMVECTOR temp = { 0, 0,1* -timer.Delta(), camera.viewMatrix.r[3].m128_f32[3] };
+		XMVECTOR temp = { 0, 0,10* -timer.Delta(), camera.viewMatrix.r[3].m128_f32[3] };
 		camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), camera.viewMatrix);
 	}
 	if (GetAsyncKeyState('A')) // look left
@@ -584,7 +554,7 @@ bool DEMO_APP::Run()
 		camera.viewMatrix.r[3].m128_f32[2] = 0;
 		camera.viewMatrix.r[3].m128_f32[3] = 1;
 
-		camera.viewMatrix = XMMatrixMultiply(camera.viewMatrix, XMMatrixRotationY(-timer.Delta()));
+		camera.viewMatrix = XMMatrixMultiply(camera.viewMatrix, XMMatrixRotationY(-timer.Delta()*10));
 		camera.viewMatrix.r[3].m128_f32[0] = temp.m128_f32[0];
 		camera.viewMatrix.r[3].m128_f32[1] = temp.m128_f32[1];
 		camera.viewMatrix.r[3].m128_f32[2] = temp.m128_f32[2];
@@ -599,19 +569,19 @@ bool DEMO_APP::Run()
 		camera.viewMatrix.r[3].m128_f32[2] = 0;
 		camera.viewMatrix.r[3].m128_f32[3] = 1;
 
-		camera.viewMatrix = XMMatrixMultiply(camera.viewMatrix, XMMatrixRotationY(timer.Delta()));
+		camera.viewMatrix = XMMatrixMultiply(camera.viewMatrix, XMMatrixRotationY(timer.Delta()*10));
 		camera.viewMatrix.r[3].m128_f32[0] = temp.m128_f32[0];
 		camera.viewMatrix.r[3].m128_f32[1] = temp.m128_f32[1];
 		camera.viewMatrix.r[3].m128_f32[2] = temp.m128_f32[2];
 	}
 	if (GetAsyncKeyState('Q')) // strafe left
 	{
-		XMVECTOR temp = { -1 * timer.Delta(), 0, 0, camera.viewMatrix.r[3].m128_f32[3] };
+		XMVECTOR temp = { -10 * timer.Delta(), 0, 0, camera.viewMatrix.r[3].m128_f32[3] };
 		camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), camera.viewMatrix);
 	}
 	if (GetAsyncKeyState('E')) // strafe right
 	{
-		XMVECTOR temp = { 1 * timer.Delta(), 0, 0, camera.viewMatrix.r[3].m128_f32[3] };
+		XMVECTOR temp = { 10 * timer.Delta(), 0, 0, camera.viewMatrix.r[3].m128_f32[3] };
 		camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp),camera.viewMatrix);
 	}
 	if (GetAsyncKeyState('R'))
@@ -623,7 +593,7 @@ bool DEMO_APP::Run()
 		camera.viewMatrix.r[3].m128_f32[2] = 0;
 		camera.viewMatrix.r[3].m128_f32[3] = 1;
 
-		camera.viewMatrix = XMMatrixMultiply(XMMatrixRotationX(timer.Delta()), camera.viewMatrix);
+		camera.viewMatrix = XMMatrixMultiply(XMMatrixRotationX(10*timer.Delta()), camera.viewMatrix);
 		camera.viewMatrix.r[3].m128_f32[0] = temp.m128_f32[0];
 		camera.viewMatrix.r[3].m128_f32[1] = temp.m128_f32[1];
 		camera.viewMatrix.r[3].m128_f32[2] = temp.m128_f32[2];
@@ -637,19 +607,19 @@ bool DEMO_APP::Run()
 		camera.viewMatrix.r[3].m128_f32[2] = 0;
 		camera.viewMatrix.r[3].m128_f32[3] = 1;
 
-		camera.viewMatrix = XMMatrixMultiply(XMMatrixRotationX(-timer.Delta()), camera.viewMatrix);
+		camera.viewMatrix = XMMatrixMultiply(XMMatrixRotationX(10*-timer.Delta()), camera.viewMatrix);
 		camera.viewMatrix.r[3].m128_f32[0] = temp.m128_f32[0];
 		camera.viewMatrix.r[3].m128_f32[1] = temp.m128_f32[1];
 		camera.viewMatrix.r[3].m128_f32[2] = temp.m128_f32[2];
 	}
 	if (GetAsyncKeyState('Z')) // strafe left
 	{
-		XMVECTOR temp = {0,  1 * timer.Delta(), 0, camera.viewMatrix.r[3].m128_f32[3] };
+		XMVECTOR temp = {0,  10 * timer.Delta(), 0, camera.viewMatrix.r[3].m128_f32[3] };
 		camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), camera.viewMatrix);
 	}
 	if (GetAsyncKeyState('X')) // strafe right
 	{
-		XMVECTOR temp = {0,  -1 * timer.Delta(), 0, camera.viewMatrix.r[3].m128_f32[3] };
+		XMVECTOR temp = {0,  -10 * timer.Delta(), 0, camera.viewMatrix.r[3].m128_f32[3] };
 		camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), camera.viewMatrix);
 	}
 	//if (GetAsyncKeyState(MOUSEEVENTF_RIGHTDOWN))

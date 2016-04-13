@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <vector>
 #include "SharedDefines.h"
+#include "DDSTextureLoader.h"
 using namespace DirectX;
 using namespace std;
 
@@ -59,6 +60,27 @@ struct OBJECT_TO_VRAM
 struct SCENE_TO_VRAM
 {
 	XMMATRIX viewMatrix, projectionMatrix;
+};
+
+struct POINT_LIGHT
+{
+	float4 pointLightPosition;
+	float4 pointLightColor;
+	float4 pointLightRadius;
+};
+
+struct DIRECTIONAL_LIGHT
+{
+	float4 directionalLightDirection;
+	float4 directionalLightColr;
+};
+
+struct SPOT_LIGHT
+{
+	float4 spotLightPosition;
+	float4 spotLightColor;
+	float4 spotLightConeDirection;
+	float4 spotLightConeRatio;
 };
 
 
