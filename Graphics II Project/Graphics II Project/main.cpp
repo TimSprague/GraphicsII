@@ -24,6 +24,7 @@
 #include "Cube.h"
 #include "faceDiff.h"
 #include "Model.h"
+#include "Lights.csh"
 
 
 
@@ -79,6 +80,10 @@ class DEMO_APP
 
 	ID3D11Buffer *ConstObjectBuffer;                         // pointer to the constant buffer holding the world
 	ID3D11Buffer *ConstSceneBuffer;                          // pointer to the scene holding view and projection
+	ID3D11Buffer *ConstantPointLightBuffer;
+	ID3D11Buffer *ConstantDirectionalLightBuffer;
+	ID3D11Buffer *ConstantSpotLightBuffer;
+
 	//ID3D11Buffer *ConstModelBuffer;
 	
 	XTime timer;
@@ -124,28 +129,28 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 {
 	// ****************** BEGIN WARNING ***********************// 
 	// WINDOWS CODE, I DON'T TEACH THIS YOU MUST KNOW IT ALREADY! 
-	application = hinst; 
-	appWndProc = proc; 
+	application = hinst;
+	appWndProc = proc;
 
 	WNDCLASSEX  wndClass;
-    ZeroMemory( &wndClass, sizeof( wndClass ) );
-    wndClass.cbSize         = sizeof( WNDCLASSEX );             
-    wndClass.lpfnWndProc    = appWndProc;						
-    wndClass.lpszClassName  = L"DirectXApplication";            
-	wndClass.hInstance      = application;		               
-    wndClass.hCursor        = LoadCursor( NULL, IDC_ARROW );    
-    wndClass.hbrBackground  = ( HBRUSH )( COLOR_WINDOWFRAME ); 
+	ZeroMemory(&wndClass, sizeof(wndClass));
+	wndClass.cbSize = sizeof(WNDCLASSEX);
+	wndClass.lpfnWndProc = appWndProc;
+	wndClass.lpszClassName = L"DirectXApplication";
+	wndClass.hInstance = application;
+	wndClass.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wndClass.hbrBackground = (HBRUSH)(COLOR_WINDOWFRAME);
 	//wndClass.hIcon			= LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_FSICON));
-    RegisterClassEx( &wndClass );
+	RegisterClassEx(&wndClass);
 
 	RECT window_size = { 0, 0, BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT };
 	AdjustWindowRect(&window_size, WS_OVERLAPPEDWINDOW, false);
 
-	window = CreateWindow(	L"DirectXApplication", L"Lab 1a Line Land",	WS_OVERLAPPEDWINDOW & ~(WS_THICKFRAME|WS_MAXIMIZEBOX), 
-							CW_USEDEFAULT, CW_USEDEFAULT, window_size.right-window_size.left, window_size.bottom-window_size.top,					
-							NULL, NULL,	application, this );												
+	window = CreateWindow(L"DirectXApplication", L"Lab 1a Line Land", WS_OVERLAPPEDWINDOW & ~(WS_THICKFRAME | WS_MAXIMIZEBOX),
+		CW_USEDEFAULT, CW_USEDEFAULT, window_size.right - window_size.left, window_size.bottom - window_size.top,
+		NULL, NULL, application, this);
 
-    ShowWindow( window, SW_SHOW );
+	ShowWindow(window, SW_SHOW);
 	//********************* END WARNING ************************//
 
 	// TODO: PART 1 STEP 3a
@@ -169,22 +174,22 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	// create the imagebackbuffer that will store the image to be printed
 	ID3D11Texture2D * imageBackBuffer;
-	
+
 	// get the back bufer on the swap chain and create the texture object stored in the pBackBuffer
 	// (layer of back buffer (first in the chain), uniqueid for the com object, void* points to the location of the image object)
 	swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&imageBackBuffer);
-	
+
 	// using teh imagebuffers address to create the render target
 	// (pointer to the image/object, struct that describes the render target (backbuffer doesn't need this so null works), address of the backbuffer to be used)
 	device->CreateRenderTargetView(imageBackBuffer, NULL, &rtv);
 	// must release the image buffer to release threads used by the COM object
 	imageBackBuffer->Release();
 
-	
+
 	// zero out the struct for viewport
 	ZeroMemory(&viewport, sizeof(D3D11_VIEWPORT));
 
-	viewport.Width =  BACKBUFFER_WIDTH;
+	viewport.Width = BACKBUFFER_WIDTH;
 	viewport.Height = BACKBUFFER_HEIGHT;
 	viewport.MaxDepth = 1;
 	viewport.MinDepth = 0;
@@ -196,11 +201,11 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	SIMPLE_VERTEX triangleCombo[12];
 	int startDegree = 90;
 	int increment = 36;
-	for(int i = 1; i < 11; i++)
+	for (int i = 1; i < 11; i++)
 	{
-		if ((i%2) == 0)
+		if ((i % 2) == 0)
 		{
-			triangleCombo[i] = {cosf(XMConvertToRadians(startDegree))*0.3f, sinf(XMConvertToRadians(startDegree))*0.3f, 0.0f, 1, 0, 0, 1};
+			triangleCombo[i] = { cosf(XMConvertToRadians(startDegree))*0.3f, sinf(XMConvertToRadians(startDegree))*0.3f, 0.0f, 1, 0, 0, 1 };
 		}
 		else
 		{
@@ -208,13 +213,13 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 		}
 		startDegree -= increment;
 	}
-	triangleCombo[0] = { 0.0f,0.0f,-0.3f, 0, 0, 1, 1 }; 
+	triangleCombo[0] = { 0.0f,0.0f,-0.3f, 0, 0, 1, 1 };
 	triangleCombo[11] = { 0.0f,0.0f,0.3f, 0, 0, 1, 1 };
 
 	UINT indexOrder[60];
 	int curr = 1;
 	// loop and wind to the right, giving the front faces
-	for (int i = 0; i < 30; i+=3)
+	for (int i = 0; i < 30; i += 3)
 	{
 		indexOrder[i] = 0;
 		indexOrder[i + 1] = curr;
@@ -223,7 +228,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	}
 	curr = 1;
 	// loop and wind to the left, giving the back faces
-	for (int i = 30; i < 60; i+=3)
+	for (int i = 30; i < 60; i += 3)
 	{
 		indexOrder[i] = 11;
 		indexOrder[i + 2] = curr;
@@ -233,20 +238,19 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #pragma endregion
 
-
-
 #pragma region model loading
 
-                                                                                                //14967             14967             14967
-	miniGunModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/DP GUN 1.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal); 
+	//14967             14967             14967
+	miniGunModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/DP GUN 1.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
 	//miniGunModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/crate.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
 
-	
+
 	groundModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/Ground.obj", groundModel.pos, groundModel.uv, groundModel.normal);
 	//miniGunModel.loadOBJ("../Graphics II Project/Dragon/dragon1.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
 
 #pragma endregion
-	// TODO: PART 2 STEP 3b
+
+#pragma region VertexBuffers
 
 	D3D11_BUFFER_DESC triangleBufferDesc;
 	ZeroMemory(&triangleBufferDesc, sizeof(D3D11_BUFFER_DESC));
@@ -254,11 +258,11 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	triangleBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	triangleBufferDesc.CPUAccessFlags = NULL;
 	// total size of the buffer
-	triangleBufferDesc.ByteWidth = sizeof(SIMPLE_VERTEX)*12;
+	triangleBufferDesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 12;
 	triangleBufferDesc.MiscFlags = NULL;
 	triangleBufferDesc.StructureByteStride = sizeof(SIMPLE_VERTEX);
 
-    // gun buffer
+	// gun buffer
 	D3D11_BUFFER_DESC gunBufferDesc;
 	ZeroMemory(&gunBufferDesc, sizeof(D3D11_BUFFER_DESC));
 	gunBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
@@ -279,6 +283,9 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	groundBufferDesc.MiscFlags = NULL;
 	//groundBufferDesc.StructureByteStride = sizeof(OBJ_VERT);
 
+#pragma endregion
+
+#pragma region IndexBuffers
 	// triangle indexbuffer
 	D3D11_BUFFER_DESC indexBufferDesc;
 	ZeroMemory(&indexBufferDesc, sizeof(D3D11_BUFFER_DESC));
@@ -308,7 +315,9 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	groundIndexBufferDesc.ByteWidth = sizeof(UINT) * (UINT)groundModel.uniqueIndexBuffer.size();
 	groundIndexBufferDesc.MiscFlags = NULL;
 	groundIndexBufferDesc.StructureByteStride = sizeof(const unsigned int);
+#pragma endregion
 
+#pragma region Textures
 	D3D11_TEXTURE2D_DESC descDepth;
 	descDepth.Width = BACKBUFFER_WIDTH;
 	descDepth.Height = BACKBUFFER_HEIGHT;
@@ -334,7 +343,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 	textureDesc.CPUAccessFlags = 0;
 	textureDesc.MiscFlags = 0;
-	
+
 	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
 	//ZeroMemory(&descDSV, sizeof(descDSV));
 	descDSV.Format = DXGI_FORMAT_D32_FLOAT;
@@ -348,7 +357,10 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	sampleDesc.ComparisonFunc = D3D11_COMPARISON_GREATER;
 	sampleDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
-    // TODO: PART 2 STEP 3c
+#pragma endregion
+
+#pragma region SubResourceData
+	// TODO: PART 2 STEP 3c
 	D3D11_SUBRESOURCE_DATA subTriData = {};
 	subTriData.pSysMem = triangleCombo;
 	subTriData.SysMemPitch = 0;
@@ -358,7 +370,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	triangleindexData.pSysMem = indexOrder;
 	triangleindexData.SysMemPitch = 0;
 	triangleindexData.SysMemSlicePitch = 0;
-	
+
 	D3D11_SUBRESOURCE_DATA subMiniGunData = {};
 	subMiniGunData.pSysMem = miniGunModel.uniqueVerts.data();
 	subMiniGunData.SysMemPitch = 0;
@@ -379,7 +391,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	groundIndexData.SysMemPitch = 0;
 	groundIndexData.SysMemSlicePitch = 0;
 
-	
+
 	D3D11_SUBRESOURCE_DATA subTextureData[faceDiff_numlevels] = {};
 	for (int i = 0; i < faceDiff_numlevels; i++)
 	{
@@ -388,8 +400,10 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 		subTextureData[i].SysMemSlicePitch = 0;
 	}
 
-	// TODO: PART 2 STEP 3d
-	
+#pragma endregion
+
+#pragma region CreateBuffers/Textures/Shaders
+
 	// the device is the d3d11 device created earlier used to create all the buffer
 	device->CreateBuffer(&triangleBufferDesc, &subTriData, &vertexStarBuffer);
 	device->CreateBuffer(&indexBufferDesc, &triangleindexData, &starIndexBuffer);
@@ -406,30 +420,27 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	device->CreateShaderResourceView(texturesArray, nullptr, &SRV);
 
 	// loading using the ddstexture
-	CreateDDSTextureFromFile(device, L"../Graphics II Project/sbv9148irj-Deadpool/Deadpool/WEP_MP7_TEXTSET_Color_NormX1.dds", NULL, &GunSRV );
+	CreateDDSTextureFromFile(device, L"../Graphics II Project/sbv9148irj-Deadpool/Deadpool/WEP_MP7_TEXTSET_Color_NormX1.dds", NULL, &GunSRV);
 	CreateDDSTextureFromFile(device, L"texture3.dds", NULL, &GroundSRV);
 
-
-	// ADD SHADERS TO PROJECT, SET BUILD OPTIONS & COMPILE
-
-	// TODO: PART 2 STEP 7
-	
 	device->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), nullptr, &vertexShader);
 	device->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), nullptr, &pixelShader);
 	device->CreateVertexShader(Star_VS, sizeof(Star_VS), nullptr, &StarVertexShader);
 	device->CreatePixelShader(Star_PS, sizeof(Star_PS), nullptr, &StarPIxelShader);
-	//device->CreatePixelShader(, sizeof(Lighting), nullptr, &LightShader);
+	device->CreatePixelShader(Lights, sizeof(Lights), nullptr, &LightShader);
 
+#pragma endregion
 	// TODO: PART 2 STEP 8a
-	
+
+#pragma region Layouts
 	D3D11_INPUT_ELEMENT_DESC vLayout[] =
 	{
 		{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,D3D11_APPEND_ALIGNED_ELEMENT,D3D11_INPUT_PER_VERTEX_DATA,0},
 		{ "UV",0,DXGI_FORMAT_R32G32B32_FLOAT,0,D3D11_APPEND_ALIGNED_ELEMENT,D3D11_INPUT_PER_VERTEX_DATA,0 },
-		{"NORMAL",0,DXGI_FORMAT_R32G32B32_FLOAT,0,D3D11_APPEND_ALIGNED_ELEMENT,D3D11_INPUT_PER_VERTEX_DATA,0},
+		{"NORMAL",0,DXGI_FORMAT_R32G32B32_FLOAT,0,D3D11_APPEND_ALIGNED_ELEMENT,D3D11_INPUT_PER_VERTEX_DATA,0}
 	};
 
-	D3D11_INPUT_ELEMENT_DESC starLayout[] = 
+	D3D11_INPUT_ELEMENT_DESC starLayout[] =
 	{
 		{ "POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,D3D11_APPEND_ALIGNED_ELEMENT,D3D11_INPUT_PER_VERTEX_DATA,0 },
 		{ "COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,D3D11_APPEND_ALIGNED_ELEMENT,D3D11_INPUT_PER_VERTEX_DATA,0 }
@@ -438,9 +449,10 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	//UINT num_elements = sizeof(vLayout) / sizeof(vLayout[0]);
 	device->CreateInputLayout(vLayout, ARRAYSIZE(vLayout), Trivial_VS, sizeof(Trivial_VS), &input);
 	device->CreateInputLayout(starLayout, ARRAYSIZE(starLayout), Star_VS, sizeof(Star_VS), &starInput);
-	
-	// TODO: PART 3 STEP 3
 
+#pragma endregion
+	// TODO: PART 3 STEP 3
+#pragma region ConstBufferDesc
 	D3D11_BUFFER_DESC constbufferstuff;
 	ZeroMemory(&constbufferstuff, sizeof(D3D11_BUFFER_DESC));
 	constbufferstuff.ByteWidth = sizeof(OBJECT_TO_VRAM);
@@ -465,12 +477,33 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	constbufferstuffModel.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	constbufferstuffModel.StructureByteStride = sizeof(float);
 
+	D3D11_BUFFER_DESC constbufferDirectionalLight;
+	ZeroMemory(&constbufferDirectionalLight, sizeof(D3D11_BUFFER_DESC));
+	constbufferDirectionalLight.ByteWidth = sizeof(DIRECTIONAL_LIGHT);
+	constbufferDirectionalLight.Usage = D3D11_USAGE_DYNAMIC;
+	constbufferDirectionalLight.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	constbufferDirectionalLight.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	constbufferDirectionalLight.StructureByteStride = sizeof(float);
+
+	D3D11_BUFFER_DESC constBufferSpotLight;
+	ZeroMemory(&constBufferSpotLight, sizeof(D3D11_BUFFER_DESC));
+	constBufferSpotLight.ByteWidth = sizeof(SPOT_LIGHT);
+	constBufferSpotLight.Usage = D3D11_USAGE_DYNAMIC;
+	constBufferSpotLight.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	constBufferSpotLight.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	constBufferSpotLight.StructureByteStride = sizeof(float);
+
 	device->CreateBuffer(&constbufferstuff, NULL, &ConstObjectBuffer);
 	device->CreateBuffer(&constbufferstuffScene, NULL, &ConstSceneBuffer);
-	//device->CreateBuffer(&constbufferstuffModel, NULL, &ConstModelBuffer);
-	
+	device->CreateBuffer(&constbufferDirectionalLight, NULL, &ConstantDirectionalLightBuffer);
+	device->CreateBuffer(&constBufferSpotLight, NULL, &ConstantSpotLightBuffer);
+
+#pragma endregion
+
+#pragma region setWorldMatrix
+
 	// TODO: PART 3 STEP 4b
-	ground.worldMatrix =  XMMatrixIdentity();
+	ground.worldMatrix = XMMatrixIdentity();
 	ground.worldMatrix = XMMatrixTranslation(0, -1, 0);
 	star.worldMatrix = XMMatrixIdentity();
 	star.worldMatrix = XMMatrixTranslation(-4, 3, 8);
@@ -482,12 +515,25 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	// set the position of xyz 
 	miniGun.worldMatrix.r[3].m128_f32[0] = 0;
 	miniGun.worldMatrix.r[3].m128_f32[1] = 0;
-	miniGun.worldMatrix.r[3].m128_f32[2] = 8;
-	camera.projectionMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(65),AspectRatio,zNear,zFar);
+	miniGun.worldMatrix.r[3].m128_f32[2] = 0;
+	camera.projectionMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(65), AspectRatio, zNear, zFar);
 	camera.viewMatrix = XMMatrixInverse(NULL, XMMatrixIdentity());
 	//miniGun.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(XMConvertToRadians(90)), miniGun.worldMatrix);
 	//miniGun.worldMatrix = XMMatrixMultiply(XMMatrixRotationX(XMConvertToRadians(270)), miniGun.worldMatrix);
 
+	// lighting
+	DirectionalLight.worldMatrix = XMMatrixIdentity();
+	DirectionalLight.worldMatrix = XMMatrixTranslation(0, 3, 0);
+	DirectionalLight.directionalLightColor = { 0.0f,1.0f,0.0f,0.0f };
+	DirectionalLight.directionalLightDirection = { 0.0f,0.0f,1.0f,0.0f };
+	//SpotLight.worldMatrix = XMMatrixIdentity();
+	//SpotLight.worldMatrix = XMMatrixTranslation(1, 3, -1);
+	SpotLight.spotLightColor = { 0.3f,0.3f,1,1.0f };
+	SpotLight.spotLightConeDirection = { 0.0f,-1.0f, 0.0f,0.0f };
+	SpotLight.spotLightConeRatio = {cosf(XMConvertToRadians(45)), cosf(XMConvertToRadians(90)), 0.0f, 0.0f};
+	SpotLight.spotLightPosition = { 0.0f,3.0f,0.0f,0.0f };
+
+#pragma endregion
 	device->CreateSamplerState(&sampleDesc,&sampleState);
 
 }
@@ -506,14 +552,12 @@ bool DEMO_APP::Run()
 	timer.Signal();
 	// TODO: PART 4 STEP 2	
 
-	//ground.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(timer.Delta()), Cube.worldMatrix);
 	star.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(timer.Delta()), star.worldMatrix);
-	//miniGun.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(90), miniGun.worldMatrix);
-		
+	
+	// make temp matrix then set it to the xyz for the direction and multiply it for rotation and pass values back to direction for spot light
+
 	// set the render target equal to the backbuffer for use bind one or more render targets atomically
 	// (number of render targets to set(usually 1), pointer to list of viewable objects, the depthstencilview(if null it is not bound))
-	//context->OMSetRenderTargets(1, &rtv, NULL);
-
 	context->OMSetRenderTargets(1, &rtv, depthStencilView);
 	
 	// TODO: PART 1 STEP 7b
@@ -542,7 +586,7 @@ bool DEMO_APP::Run()
 	}
 	if (GetAsyncKeyState('S')) // move backward
 	{
-		XMVECTOR temp = { 0, 0,10* -timer.Delta(), camera.viewMatrix.r[3].m128_f32[3] };
+		XMVECTOR temp = { 0, 0,5* -timer.Delta(), camera.viewMatrix.r[3].m128_f32[3] };
 		camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), camera.viewMatrix);
 	}
 	if (GetAsyncKeyState('A')) // look left
@@ -569,7 +613,7 @@ bool DEMO_APP::Run()
 		camera.viewMatrix.r[3].m128_f32[2] = 0;
 		camera.viewMatrix.r[3].m128_f32[3] = 1;
 
-		camera.viewMatrix = XMMatrixMultiply(camera.viewMatrix, XMMatrixRotationY(timer.Delta()*10));
+		camera.viewMatrix = XMMatrixMultiply(camera.viewMatrix, XMMatrixRotationY(timer.Delta()*5));
 		camera.viewMatrix.r[3].m128_f32[0] = temp.m128_f32[0];
 		camera.viewMatrix.r[3].m128_f32[1] = temp.m128_f32[1];
 		camera.viewMatrix.r[3].m128_f32[2] = temp.m128_f32[2];
@@ -593,7 +637,7 @@ bool DEMO_APP::Run()
 		camera.viewMatrix.r[3].m128_f32[2] = 0;
 		camera.viewMatrix.r[3].m128_f32[3] = 1;
 
-		camera.viewMatrix = XMMatrixMultiply(XMMatrixRotationX(10*timer.Delta()), camera.viewMatrix);
+		camera.viewMatrix = XMMatrixMultiply(XMMatrixRotationX(5*timer.Delta()), camera.viewMatrix);
 		camera.viewMatrix.r[3].m128_f32[0] = temp.m128_f32[0];
 		camera.viewMatrix.r[3].m128_f32[1] = temp.m128_f32[1];
 		camera.viewMatrix.r[3].m128_f32[2] = temp.m128_f32[2];
@@ -607,7 +651,7 @@ bool DEMO_APP::Run()
 		camera.viewMatrix.r[3].m128_f32[2] = 0;
 		camera.viewMatrix.r[3].m128_f32[3] = 1;
 
-		camera.viewMatrix = XMMatrixMultiply(XMMatrixRotationX(10*-timer.Delta()), camera.viewMatrix);
+		camera.viewMatrix = XMMatrixMultiply(XMMatrixRotationX(5*-timer.Delta()), camera.viewMatrix);
 		camera.viewMatrix.r[3].m128_f32[0] = temp.m128_f32[0];
 		camera.viewMatrix.r[3].m128_f32[1] = temp.m128_f32[1];
 		camera.viewMatrix.r[3].m128_f32[2] = temp.m128_f32[2];
@@ -634,11 +678,6 @@ bool DEMO_APP::Run()
 	
 	// TODO: PART 3 STEP 5
 	
-	//D3D11_MAPPED_SUBRESOURCE map;
-	//context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
-	//memcpy(map.pData, &Cube, sizeof(OBJECT_TO_VRAM));
-	//context->Unmap(ConstObjectBuffer, 0);
-
 	camera.viewMatrix = XMMatrixInverse(NULL, VS_ViewMatrix);
 
 	D3D11_MAPPED_SUBRESOURCE map2;
@@ -650,16 +689,10 @@ bool DEMO_APP::Run()
 	// 0 and 1 corelate to the buffer 0 or 1 in the vertex shader HLSL
 	context->VSSetConstantBuffers(0, 1, &ConstObjectBuffer);
 	context->VSSetConstantBuffers(1, 1, &ConstSceneBuffer);
-	//context->VSSetConstantBuffers(2, 1, &ConstModelBuffer);
+	context->PSSetConstantBuffers(1, 1, &ConstantDirectionalLightBuffer);
+	context->PSSetConstantBuffers(0, 1, &ConstantSpotLightBuffer);
 
 	// TODO: PART 2 STEP 9a
-	//// cube from header
-	//UINT stride = sizeof(OBJ_VERT);
-	//// triangle created
-	////UINT stride = sizeof(SIMPLE_VERTEX);
-	//UINT offset = 0;
-	//context->IASetVertexBuffers(0, 1, &vertexCubeBuffer,&stride, &offset);
-	//context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
 	// TODO: PART 2 STEP 9b
 
@@ -674,7 +707,6 @@ bool DEMO_APP::Run()
 
 	// TODO: PART 2 STEP 9d
 	
-	//context->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// TODO: PART 2 STEP 10
 	
@@ -702,6 +734,7 @@ bool DEMO_APP::Run()
 	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &gunMap);
 	memcpy(gunMap.pData, &miniGun, sizeof(OBJECT_TO_VRAM));
 	context->Unmap(ConstObjectBuffer, 0);
+
 	UINT gunstride = sizeof(Model::vertex_Normal);
 	UINT gunOffset = 0;
 	context->IASetVertexBuffers(0, 1, &vertexMiniGunBuffer, &gunstride, &gunOffset);
@@ -709,7 +742,7 @@ bool DEMO_APP::Run()
 	context->IASetInputLayout(input);
 	context->PSSetShaderResources(0, 1, &GunSRV);
 	context->VSSetShader(vertexShader, NULL, 0);
-	context->PSSetShader(pixelShader, NULL, 0);
+	context->PSSetShader(LightShader, NULL, 0);
 	context->DrawIndexed(miniGunModel.uniqueIndexBuffer.size(), 0, 0);
 
 
@@ -717,16 +750,35 @@ bool DEMO_APP::Run()
 	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &groundMap);
 	memcpy(groundMap.pData, &ground, sizeof(OBJECT_TO_VRAM));
 	context->Unmap(ConstObjectBuffer, 0);
+
 	UINT groundstride = sizeof(Model::vertex_Normal);
 	UINT groundOffset = 0;
+
 	context->IASetVertexBuffers(0, 1, &vertexGroundBuffer, &groundstride, &groundOffset);
 	context->IASetIndexBuffer(groundIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
 	context->IASetInputLayout(input);
+
 	context->PSSetShaderResources(0, 1, &GroundSRV);
 	context->VSSetShader(vertexShader, NULL, 0);
-	context->PSSetShader(pixelShader, NULL, 0);
+	context->PSSetShader(LightShader, NULL, 0);
+
 	context->DrawIndexed(groundModel.uniqueIndexBuffer.size(), 0, 0);
 	// END PART 2
+
+	//D3D11_MAPPED_SUBRESOURCE DirectionalLightMap;
+	//context->Map(ConstantDirectionalLightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DirectionalLightMap);
+	//memcpy(DirectionalLightMap.pData, &DirectionalLight, sizeof(DIRECTIONAL_LIGHT));
+	//context->Unmap(ConstantDirectionalLightBuffer, 0);
+	//context->PSSetShader(LightShader, NULL, 0);
+
+	D3D11_MAPPED_SUBRESOURCE SpotLightMap;
+	context->Map(ConstantSpotLightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &SpotLightMap);
+	memcpy(SpotLightMap.pData, &SpotLight, sizeof(SPOT_LIGHT));
+	context->Unmap(ConstantSpotLightBuffer, 0);
+	context->PSSetShader(LightShader, NULL, 0);
+	
+	
 
 	// TODO: PART 1 STEP 8
 

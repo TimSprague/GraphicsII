@@ -1,4 +1,4 @@
-#include "Header.hlsli"
+//#include "Header.hlsli"
 
 // from vertex shader to pixel shader, same order as the vertex shader
 struct INPUT_PIXEL

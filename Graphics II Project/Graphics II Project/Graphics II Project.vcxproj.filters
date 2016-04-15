@@ -59,6 +59,7 @@
     <FxCompile Include="Trivial_VS.hlsl" />
     <FxCompile Include="Star_VS.hlsl" />
     <FxCompile Include="Star_PS.hlsl" />
+    <FxCompile Include="Lights.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Lighting.hlsli" />
