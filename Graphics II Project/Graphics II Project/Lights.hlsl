@@ -43,20 +43,22 @@ float4 main(INPUT_PIXEL input) : SV_TARGET
 {
 	// get the color from the texture  AKA SURFACE COLOR
 	float4 baseColor = baseTexture.Sample(filters, input.uv.xy);
-	float4 ambient = float4(baseColor.xyzw * 0.75f);
+	float4 ambient = float4(baseColor.xyzw * 0.25f);
 
 	// directional light formula
 	//                                     light direction its facing    surface normal
 	float DIRECTIONALLIGHTRATIO = clamp(dot(-directionalLightDirection, input.normal),0,1);
 	//                                light color           surface color
 	float4 DIRECTIONALRESULT = DIRECTIONALLIGHTRATIO * directionalLightColor * baseColor;
-	////                                       light position         surface position
-	//float4 POINTLIGHTDIRECTION = NORMALIZE(pointLightPosition - input.projectedCoordinate);
-	////                                  direction light shines   surface normal
-	//float4 POINTLIGHTRATIO = CLMAP(DOT(POINTLIGHTDIRECTION, input.normal));
-	////                           light ratio      light color     surface color
-	//float4 POINTLIGHTRESULT = (POINTLIGHTRATIO * pointLightColor * baseColor);
-	////                                      light position        surface position
+	//                                       light position         surface position
+	float4 POINTLIGHTDIRECTION = float4(normalize(pointLightPosition.xyz - input.worldPosition.xyz),1);
+	//                                  direction light shines   surface normal
+	float POINTLIGHTRATIO = clamp(dot(POINTLIGHTDIRECTION, input.normal),0,1);
+	//                           light ratio      light color     surface color
+	float4 POINTLIGHTRESULT = (POINTLIGHTRATIO * pointLightColor * baseColor);
+	//
+	float POINTLIGHTATTENUATION = 1.0 - clamp(magnitude( float4((pointLightPosition.xyz - input.worldPosition.xyz) / pointLightRadius ,1 )), 0, 1);
+	//                                      light position        surface position
 	float3 SPOTLIGHTDIRECTION = normalize(spotLightPosition.xyz - input.worldPosition.xyz);
 	//                                          light direction        cone direction
 	float SPOTLIGHTSURFACERATIO = clamp(dot(-SPOTLIGHTDIRECTION.xyz, spotLightConeDirection.xyz), 0, 1);
@@ -67,15 +69,13 @@ float4 main(INPUT_PIXEL input) : SV_TARGET
 	//                        spot light factor     light ratio     light color  surface color
 	float4 SPOTLIGHTRESULT = SPOTLIGHTSPOTFACTOR * SPOTLIGHTRATIO * spotLightColor *baseColor;
 	//                                            
-	//float POINTLIGHTATTENUATION = 1.0 - clamp(magnitude(pointLightPosition - input.projectedCoordinate) / 0.5f, 0, 1);
+	//float SPOTLIGHTATTENUATION1 = 1.0 - clamp(magnitude(spotLightPosition.xyz - input.worldPosition.xyz) / 0.5f, 0, 1);
 	////
-	//float SPOTLIGHTATTENUATION1 = 1.0 - clamp(magnitude(spotLightPosition - input.projectedCoordinate) / 0.5f, 0, 1);
-	////
-	//float SPOTLIGHTATTENUATION2 = 1.0 - clamp((0.001f - SPOTLIGHTSURFACERATIO) / (0.001f - 0.999), 0, 1);
+	//float SPOTLIGHTATTENUATION2 = 1.0 - clamp((spotLightConeRatio.x - SPOTLIGHTSURFACERATIO) / (spotLightConeRatio.x - spotLightConeRatio.y), 0, 1);
 	////
 	//float TOTALATTENUATION = SPOTLIGHTATTENUATION1 * SPOTLIGHTATTENUATION2;
 
-	return saturate(float4(SPOTLIGHTRESULT.xyz/* + ambient.xyz*/, baseColor.a));//saturate(DIRECTIONALRESULT + SPOTLIGHTRESULT + baseColor);
+	return saturate(float4(POINTLIGHTRESULT + DIRECTIONALRESULT + SPOTLIGHTRESULT.xyz/* + baseColor.rgb*/, baseColor.a));//saturate(DIRECTIONALRESULT + SPOTLIGHTRESULT + baseColor);
 
 }
 

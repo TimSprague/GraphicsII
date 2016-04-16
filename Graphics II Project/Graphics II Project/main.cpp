@@ -421,7 +421,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	// loading using the ddstexture
 	CreateDDSTextureFromFile(device, L"../Graphics II Project/sbv9148irj-Deadpool/Deadpool/WEP_MP7_TEXTSET_Color_NormX1.dds", NULL, &GunSRV);
-	CreateDDSTextureFromFile(device, L"texture3.dds", NULL, &GroundSRV);
+	CreateDDSTextureFromFile(device, L"Seamless tileable ice snow cracks ground texture.dds", NULL, &GroundSRV);
 
 	device->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), nullptr, &vertexShader);
 	device->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), nullptr, &pixelShader);
@@ -493,10 +493,19 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	constBufferSpotLight.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	constBufferSpotLight.StructureByteStride = sizeof(float);
 
+	D3D11_BUFFER_DESC constBufferPointLight;
+	ZeroMemory(&constBufferPointLight, sizeof(D3D11_BUFFER_DESC));
+	constBufferPointLight.ByteWidth = sizeof(POINT_LIGHT);
+	constBufferPointLight.Usage = D3D11_USAGE_DYNAMIC;
+	constBufferPointLight.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	constBufferPointLight.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	constBufferPointLight.StructureByteStride = sizeof(float);
+
 	device->CreateBuffer(&constbufferstuff, NULL, &ConstObjectBuffer);
 	device->CreateBuffer(&constbufferstuffScene, NULL, &ConstSceneBuffer);
 	device->CreateBuffer(&constbufferDirectionalLight, NULL, &ConstantDirectionalLightBuffer);
 	device->CreateBuffer(&constBufferSpotLight, NULL, &ConstantSpotLightBuffer);
+	device->CreateBuffer(&constBufferPointLight, NULL, &ConstantPointLightBuffer);
 
 #pragma endregion
 
@@ -522,8 +531,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	//miniGun.worldMatrix = XMMatrixMultiply(XMMatrixRotationX(XMConvertToRadians(270)), miniGun.worldMatrix);
 
 	// lighting
-	DirectionalLight.worldMatrix = XMMatrixIdentity();
-	DirectionalLight.worldMatrix = XMMatrixTranslation(0, 3, 0);
+	/*DirectionalLight.worldMatrix = XMMatrixIdentity();
+	DirectionalLight.worldMatrix = XMMatrixTranslation(0, 3, 0);*/
 	DirectionalLight.directionalLightColor = { 0.0f,1.0f,0.0f,0.0f };
 	DirectionalLight.directionalLightDirection = { 0.0f,0.0f,1.0f,0.0f };
 	//SpotLight.worldMatrix = XMMatrixIdentity();
@@ -532,6 +541,11 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	SpotLight.spotLightConeDirection = { 0.0f,-1.0f, 0.0f,0.0f };
 	SpotLight.spotLightConeRatio = {cosf(XMConvertToRadians(45)), cosf(XMConvertToRadians(90)), 0.0f, 0.0f};
 	SpotLight.spotLightPosition = { 0.0f,3.0f,0.0f,0.0f };
+
+	PointLight.pointLightColor = { 1.0f,0.3f,0.3f,1.0f };
+	PointLight.pointLightPosition = { -4,1,4,1 };
+	PointLight.pointLightRadius = { cosf(XMConvertToRadians(45)),0,0,0 };
+
 
 #pragma endregion
 	device->CreateSamplerState(&sampleDesc,&sampleState);
@@ -691,6 +705,7 @@ bool DEMO_APP::Run()
 	context->VSSetConstantBuffers(1, 1, &ConstSceneBuffer);
 	context->PSSetConstantBuffers(1, 1, &ConstantDirectionalLightBuffer);
 	context->PSSetConstantBuffers(0, 1, &ConstantSpotLightBuffer);
+	context->PSSetConstantBuffers(2, 1, &ConstantPointLightBuffer);
 
 	// TODO: PART 2 STEP 9a
 
@@ -766,16 +781,22 @@ bool DEMO_APP::Run()
 	context->DrawIndexed(groundModel.uniqueIndexBuffer.size(), 0, 0);
 	// END PART 2
 
-	//D3D11_MAPPED_SUBRESOURCE DirectionalLightMap;
-	//context->Map(ConstantDirectionalLightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DirectionalLightMap);
-	//memcpy(DirectionalLightMap.pData, &DirectionalLight, sizeof(DIRECTIONAL_LIGHT));
-	//context->Unmap(ConstantDirectionalLightBuffer, 0);
-	//context->PSSetShader(LightShader, NULL, 0);
+	D3D11_MAPPED_SUBRESOURCE DirectionalLightMap;
+	context->Map(ConstantDirectionalLightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DirectionalLightMap);
+	memcpy(DirectionalLightMap.pData, &DirectionalLight, sizeof(DIRECTIONAL_LIGHT));
+	context->Unmap(ConstantDirectionalLightBuffer, 0);
+	context->PSSetShader(LightShader, NULL, 0);
 
 	D3D11_MAPPED_SUBRESOURCE SpotLightMap;
 	context->Map(ConstantSpotLightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &SpotLightMap);
 	memcpy(SpotLightMap.pData, &SpotLight, sizeof(SPOT_LIGHT));
 	context->Unmap(ConstantSpotLightBuffer, 0);
+	context->PSSetShader(LightShader, NULL, 0);
+
+	D3D11_MAPPED_SUBRESOURCE PointLightMap;
+	context->Map(ConstantPointLightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &PointLightMap);
+	memcpy(PointLightMap.pData, &PointLight, sizeof(POINT_LIGHT));
+	context->Unmap(ConstantPointLightBuffer, 0);
 	context->PSSetShader(LightShader, NULL, 0);
 	
 	
