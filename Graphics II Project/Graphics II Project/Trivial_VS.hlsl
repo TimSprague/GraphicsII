@@ -37,7 +37,7 @@ OUTPUT_VERTEX main( INPUT_VERTEX fromVertexBuffer )
 
 	localPos = mul(localPos, worldMatrix);
 	// append to the pixelshader for the world position of the object
-	sendToRasterizer.worldPosition = localPos;
+	sendToRasterizer.worldPosition = localPos.xyz;
 
 	localPos = mul(localPos, vewMatrix);
 	localPos = mul(localPos, projectionMatrix);
@@ -47,7 +47,8 @@ OUTPUT_VERTEX main( INPUT_VERTEX fromVertexBuffer )
 	// TODO : PART 3 STEP 7
 	sendToRasterizer.projectedCoordinate = localPos;
 	sendToRasterizer.uv = fromVertexBuffer.uv;
-	sendToRasterizer.normal = fromVertexBuffer.normal;
+	sendToRasterizer.normal = mul(float4(fromVertexBuffer.normal, 0), worldMatrix).xyz;
+	//sendToRasterizer.normal = fromVertexBuffer.normal;
 	// END PART 3
 
 	return sendToRasterizer;

@@ -55,15 +55,17 @@ class DEMO_APP
 	D3D11_VIEWPORT viewport;
 	ID3D11InputLayout *input = {};                    // pointer to the direct3d input
 	ID3D11InputLayout *starInput = {};                // pointer to the direct3d input for the star
+	POINT currPos;
 
 	// TODO: PART 2 STEP 2
 	
-	ID3D11Buffer *vertexStarBuffer, *vertexMiniGunBuffer, *vertexGroundBuffer;// pointer to hold the information in Vram
+	ID3D11Buffer *vertexStarBuffer, *vertexMiniGunBuffer, *vertexGroundBuffer, *vertexDeadPoolBuffer;// pointer to hold the information in Vram
 	unsigned int numVerts = 12;                      // number of verts in the circle
 	ID3D11Buffer *indexBuffer;                       // pointer to hold the points in order to draw
 	ID3D11Buffer *starIndexBuffer;                   // pointer to hold the points in order of the star
 	ID3D11Buffer *MinigunIndexBuffer;                // pointer to hold the points in order of the gun
 	ID3D11Buffer *groundIndexBuffer;                 // pointer to hold the points in order of the ground
+	ID3D11Buffer *deadPoolIndexBuffer;
 	ID3D11Texture2D *depthStencil = NULL;            // pointer to the "depth buffer"
 	ID3D11DepthStencilView *depthStencilView;        // the depth stencil
 
@@ -92,6 +94,7 @@ class DEMO_APP
 	OBJECT_TO_VRAM star;
 	OBJECT_TO_VRAM miniGun;
 	OBJECT_TO_VRAM ground;
+	OBJECT_TO_VRAM Deadpool;
 	SCENE_TO_VRAM camera;
 	POINT_LIGHT PointLight;
 	SPOT_LIGHT SpotLight;
@@ -99,12 +102,14 @@ class DEMO_APP
 
 	Model miniGunModel;
 	Model groundModel;
+	Model deadpoolModel;
 
 	// TODO: PART 3 STEP 4a
 	ID3D11Texture2D *texturesArray;     // pointer to the array that holds the number of miplevels
 	ID3D11ShaderResourceView *SRV;      // for old header cube
 	ID3D11ShaderResourceView *GunSRV;   // shader for the gun texture
 	ID3D11ShaderResourceView *GroundSRV;
+	ID3D11ShaderResourceView *deadPoolSRV;
 	ID3D11SamplerState *sampleState;     // pointer for the sample
 
 	RGBA backcolor;
@@ -119,6 +124,7 @@ public:
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
 	bool Run();
 	bool ShutDown();
+	SCENE_TO_VRAM Movement(SCENE_TO_VRAM&);
 };
 
 //************************************************************
@@ -244,6 +250,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	miniGunModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/DP GUN 1.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
 	//miniGunModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/crate.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
 
+	deadpoolModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/deadpool sword 1.obj", deadpoolModel.pos, deadpoolModel.uv, deadpoolModel.normal);
+
 
 	groundModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/Ground.obj", groundModel.pos, groundModel.uv, groundModel.normal);
 	//miniGunModel.loadOBJ("../Graphics II Project/Dragon/dragon1.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
@@ -283,6 +291,15 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	groundBufferDesc.MiscFlags = NULL;
 	//groundBufferDesc.StructureByteStride = sizeof(OBJ_VERT);
 
+	D3D11_BUFFER_DESC deadPoolBufferDesc;
+	ZeroMemory(&deadPoolBufferDesc, sizeof(D3D11_BUFFER_DESC));
+	deadPoolBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	deadPoolBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	deadPoolBufferDesc.CPUAccessFlags = NULL;
+	// total size of the buffer
+	deadPoolBufferDesc.ByteWidth = sizeof(Model::vertex_Normal) * (UINT)deadpoolModel.uniqueVerts.size();
+	deadPoolBufferDesc.MiscFlags = NULL;
+
 #pragma endregion
 
 #pragma region IndexBuffers
@@ -315,6 +332,16 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	groundIndexBufferDesc.ByteWidth = sizeof(UINT) * (UINT)groundModel.uniqueIndexBuffer.size();
 	groundIndexBufferDesc.MiscFlags = NULL;
 	groundIndexBufferDesc.StructureByteStride = sizeof(const unsigned int);
+
+	// deadpool index buffer
+	D3D11_BUFFER_DESC deadPoolIndexBufferDesc;
+	ZeroMemory(&deadPoolIndexBufferDesc, sizeof(D3D11_BUFFER_DESC));
+	deadPoolIndexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	deadPoolIndexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	deadPoolIndexBufferDesc.CPUAccessFlags = NULL;
+	deadPoolIndexBufferDesc.ByteWidth = sizeof(UINT) * (UINT)deadpoolModel.uniqueIndexBuffer.size();
+	deadPoolIndexBufferDesc.MiscFlags = NULL;
+	deadPoolIndexBufferDesc.StructureByteStride = sizeof(const unsigned int);
 #pragma endregion
 
 #pragma region Textures
@@ -391,6 +418,16 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	groundIndexData.SysMemPitch = 0;
 	groundIndexData.SysMemSlicePitch = 0;
 
+	D3D11_SUBRESOURCE_DATA deadPoolData = {};
+	deadPoolData.pSysMem = deadpoolModel.uniqueVerts.data();
+	deadPoolData.SysMemPitch = 0;
+	deadPoolData.SysMemSlicePitch = 0;
+
+	D3D11_SUBRESOURCE_DATA deadPoolIndexData = {};
+	deadPoolIndexData.pSysMem = deadpoolModel.uniqueIndexBuffer.data();
+	deadPoolIndexData.SysMemPitch = 0;
+	deadPoolIndexData.SysMemSlicePitch = 0;
+
 
 	D3D11_SUBRESOURCE_DATA subTextureData[faceDiff_numlevels] = {};
 	for (int i = 0; i < faceDiff_numlevels; i++)
@@ -414,14 +451,18 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	device->CreateBuffer(&gunBufferDesc, &subMiniGunData, &vertexMiniGunBuffer);
 	device->CreateBuffer(&gunIndexBufferDesc, &minigunIndexData, &MinigunIndexBuffer);
 
+	device->CreateBuffer(&deadPoolBufferDesc, &deadPoolData, &vertexDeadPoolBuffer);
+	device->CreateBuffer(&deadPoolIndexBufferDesc, &deadPoolIndexData, &deadPoolIndexBuffer);
+
 	device->CreateTexture2D(&descDepth, NULL, &depthStencil);
 	device->CreateDepthStencilView(depthStencil, &descDSV, &depthStencilView);
 	device->CreateTexture2D(&textureDesc, subTextureData, &texturesArray);
 	device->CreateShaderResourceView(texturesArray, nullptr, &SRV);
 
 	// loading using the ddstexture
-	CreateDDSTextureFromFile(device, L"../Graphics II Project/sbv9148irj-Deadpool/Deadpool/WEP_MP7_TEXTSET_Color_NormX1.dds", NULL, &GunSRV);
+	CreateDDSTextureFromFile(device, L"../Graphics II Project/sbv9148irj-Deadpool/Deadpool/WEP_MP7_TEXTSET_Color_NormX.dds", NULL, &GunSRV);
 	CreateDDSTextureFromFile(device, L"Seamless tileable ice snow cracks ground texture.dds", NULL, &GroundSRV);
+	CreateDDSTextureFromFile(device, L"../Graphics II Project/sbv9148irj-Deadpool/Deadpool/DPROP_DeadpoolSword_TEXSET_Color_NormX.dds", NULL, &deadPoolSRV);
 
 	device->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), nullptr, &vertexShader);
 	device->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), nullptr, &pixelShader);
@@ -514,21 +555,28 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	// TODO: PART 3 STEP 4b
 	ground.worldMatrix = XMMatrixIdentity();
 	ground.worldMatrix = XMMatrixTranslation(0, -1, 0);
+
 	star.worldMatrix = XMMatrixIdentity();
 	star.worldMatrix = XMMatrixTranslation(-4, 3, 8);
+
 	miniGun.worldMatrix = XMMatrixIdentity();
 	// scaling from the identity down to .05 to make it smaller
-	miniGun.worldMatrix.r[0].m128_f32[0] = .05f;
-	miniGun.worldMatrix.r[1].m128_f32[1] = .05f;
-	miniGun.worldMatrix.r[2].m128_f32[2] = .05f;
+	miniGun.worldMatrix = XMMatrixScaling(.05f, .05f, .05f);
 	// set the position of xyz 
 	miniGun.worldMatrix.r[3].m128_f32[0] = 0;
 	miniGun.worldMatrix.r[3].m128_f32[1] = 0;
 	miniGun.worldMatrix.r[3].m128_f32[2] = 0;
+
 	camera.projectionMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(65), AspectRatio, zNear, zFar);
 	camera.viewMatrix = XMMatrixInverse(NULL, XMMatrixIdentity());
 	//miniGun.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(XMConvertToRadians(90)), miniGun.worldMatrix);
 	//miniGun.worldMatrix = XMMatrixMultiply(XMMatrixRotationX(XMConvertToRadians(270)), miniGun.worldMatrix);
+
+	Deadpool.worldMatrix = XMMatrixIdentity();
+	Deadpool.worldMatrix = XMMatrixScaling(0.05f, 0.05f, 0.05f);
+	Deadpool.worldMatrix.r[3].m128_f32[0] = 4;
+	Deadpool.worldMatrix.r[3].m128_f32[1] = 0;
+	Deadpool.worldMatrix.r[3].m128_f32[2] = 0;
 
 	// lighting
 	/*DirectionalLight.worldMatrix = XMMatrixIdentity();
@@ -544,7 +592,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	PointLight.pointLightColor = { 1.0f,0.3f,0.3f,1.0f };
 	PointLight.pointLightPosition = { -4,1,4,1 };
-	PointLight.pointLightRadius = { cosf(XMConvertToRadians(45)),0,0,0 };
+	PointLight.pointLightRadius = { 10,0.01f,0.01f,0.1f };
 
 
 #pragma endregion
@@ -567,7 +615,8 @@ bool DEMO_APP::Run()
 	// TODO: PART 4 STEP 2	
 
 	star.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(timer.Delta()), star.worldMatrix);
-	
+	miniGun.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(timer.Delta()), miniGun.worldMatrix);
+
 	// make temp matrix then set it to the xyz for the direction and multiply it for rotation and pass values back to direction for spot light
 
 	// set the render target equal to the backbuffer for use bind one or more render targets atomically
@@ -586,105 +635,11 @@ bool DEMO_APP::Run()
 	context->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH, 1, 0);
 
 	 //TODO: PART 5 STEP 4
+
 #pragma region movement
 
-	camera.viewMatrix = VS_ViewMatrix;
-
-	// local =	rot/trans/scale  TIMES   matrix
-	// global = MATRIX			 TIMES   rot/trans/scale
-
-	if (GetAsyncKeyState('W')) // move forward
-	{
-		XMVECTOR temp = { 0, 0, 10*timer.Delta(), camera.viewMatrix.r[3].m128_f32[3] };
-		camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), camera.viewMatrix);
-	}
-	if (GetAsyncKeyState('S')) // move backward
-	{
-		XMVECTOR temp = { 0, 0,5* -timer.Delta(), camera.viewMatrix.r[3].m128_f32[3] };
-		camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), camera.viewMatrix);
-	}
-	if (GetAsyncKeyState('A')) // look left
-	{
-		XMVECTOR temp = { camera.viewMatrix.r[3].m128_f32[0], camera.viewMatrix.r[3].m128_f32[1], camera.viewMatrix.r[3].m128_f32[2], camera.viewMatrix.r[3].m128_f32[3] };
-		
-		camera.viewMatrix.r[3].m128_f32[0] = 0;
-		camera.viewMatrix.r[3].m128_f32[1] = 0;
-		camera.viewMatrix.r[3].m128_f32[2] = 0;
-		camera.viewMatrix.r[3].m128_f32[3] = 1;
-
-		camera.viewMatrix = XMMatrixMultiply(camera.viewMatrix, XMMatrixRotationY(-timer.Delta()*10));
-		camera.viewMatrix.r[3].m128_f32[0] = temp.m128_f32[0];
-		camera.viewMatrix.r[3].m128_f32[1] = temp.m128_f32[1];
-		camera.viewMatrix.r[3].m128_f32[2] = temp.m128_f32[2];
-
-	}
-	if (GetAsyncKeyState('D')) // look right
-	{
-		XMVECTOR temp = { camera.viewMatrix.r[3].m128_f32[0], camera.viewMatrix.r[3].m128_f32[1], camera.viewMatrix.r[3].m128_f32[2], camera.viewMatrix.r[3].m128_f32[3] };
-
-		camera.viewMatrix.r[3].m128_f32[0] = 0;
-		camera.viewMatrix.r[3].m128_f32[1] = 0;
-		camera.viewMatrix.r[3].m128_f32[2] = 0;
-		camera.viewMatrix.r[3].m128_f32[3] = 1;
-
-		camera.viewMatrix = XMMatrixMultiply(camera.viewMatrix, XMMatrixRotationY(timer.Delta()*5));
-		camera.viewMatrix.r[3].m128_f32[0] = temp.m128_f32[0];
-		camera.viewMatrix.r[3].m128_f32[1] = temp.m128_f32[1];
-		camera.viewMatrix.r[3].m128_f32[2] = temp.m128_f32[2];
-	}
-	if (GetAsyncKeyState('Q')) // strafe left
-	{
-		XMVECTOR temp = { -10 * timer.Delta(), 0, 0, camera.viewMatrix.r[3].m128_f32[3] };
-		camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), camera.viewMatrix);
-	}
-	if (GetAsyncKeyState('E')) // strafe right
-	{
-		XMVECTOR temp = { 10 * timer.Delta(), 0, 0, camera.viewMatrix.r[3].m128_f32[3] };
-		camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp),camera.viewMatrix);
-	}
-	if (GetAsyncKeyState('R'))
-	{
-		XMVECTOR temp = { camera.viewMatrix.r[3].m128_f32[0], camera.viewMatrix.r[3].m128_f32[1], camera.viewMatrix.r[3].m128_f32[2], camera.viewMatrix.r[3].m128_f32[3] };
-
-		camera.viewMatrix.r[3].m128_f32[0] = 0;
-		camera.viewMatrix.r[3].m128_f32[1] = 0;
-		camera.viewMatrix.r[3].m128_f32[2] = 0;
-		camera.viewMatrix.r[3].m128_f32[3] = 1;
-
-		camera.viewMatrix = XMMatrixMultiply(XMMatrixRotationX(5*timer.Delta()), camera.viewMatrix);
-		camera.viewMatrix.r[3].m128_f32[0] = temp.m128_f32[0];
-		camera.viewMatrix.r[3].m128_f32[1] = temp.m128_f32[1];
-		camera.viewMatrix.r[3].m128_f32[2] = temp.m128_f32[2];
-	}
-	if (GetAsyncKeyState('V'))
-	{
-		XMVECTOR temp = { camera.viewMatrix.r[3].m128_f32[0], camera.viewMatrix.r[3].m128_f32[1], camera.viewMatrix.r[3].m128_f32[2], camera.viewMatrix.r[3].m128_f32[3] };
-
-		camera.viewMatrix.r[3].m128_f32[0] = 0;
-		camera.viewMatrix.r[3].m128_f32[1] = 0;
-		camera.viewMatrix.r[3].m128_f32[2] = 0;
-		camera.viewMatrix.r[3].m128_f32[3] = 1;
-
-		camera.viewMatrix = XMMatrixMultiply(XMMatrixRotationX(5*-timer.Delta()), camera.viewMatrix);
-		camera.viewMatrix.r[3].m128_f32[0] = temp.m128_f32[0];
-		camera.viewMatrix.r[3].m128_f32[1] = temp.m128_f32[1];
-		camera.viewMatrix.r[3].m128_f32[2] = temp.m128_f32[2];
-	}
-	if (GetAsyncKeyState('Z')) // strafe left
-	{
-		XMVECTOR temp = {0,  10 * timer.Delta(), 0, camera.viewMatrix.r[3].m128_f32[3] };
-		camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), camera.viewMatrix);
-	}
-	if (GetAsyncKeyState('X')) // strafe right
-	{
-		XMVECTOR temp = {0,  -10 * timer.Delta(), 0, camera.viewMatrix.r[3].m128_f32[3] };
-		camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), camera.viewMatrix);
-	}
-	//if (GetAsyncKeyState(MOUSEEVENTF_RIGHTDOWN))
-	//{
-	//	currentPos = GetCursorPos();
-	//}
-
+	Movement(camera);
+	GetCursorPos(&currPos);
 	VS_ViewMatrix = camera.viewMatrix;
 
 #pragma endregion
@@ -726,6 +681,8 @@ bool DEMO_APP::Run()
 	// TODO: PART 2 STEP 10
 	
 	//context->DrawIndexed(1692, 0, 0);
+
+#pragma region Draw
 
 	D3D11_MAPPED_SUBRESOURCE triMap;
 	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &triMap);
@@ -779,6 +736,21 @@ bool DEMO_APP::Run()
 	context->PSSetShader(LightShader, NULL, 0);
 
 	context->DrawIndexed(groundModel.uniqueIndexBuffer.size(), 0, 0);
+
+	D3D11_MAPPED_SUBRESOURCE DeadPoolMap;
+	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DeadPoolMap);
+	memcpy(DeadPoolMap.pData, &Deadpool, sizeof(OBJECT_TO_VRAM));
+	context->Unmap(ConstObjectBuffer, 0);
+
+	UINT deadpoolStride = sizeof(Model::vertex_Normal);
+	UINT deadPoolOffset = 0;
+	context->IASetVertexBuffers(0, 1, &vertexDeadPoolBuffer, &deadpoolStride, &deadPoolOffset);
+	context->IASetIndexBuffer(deadPoolIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	context->IASetInputLayout(input);
+	context->PSSetShaderResources(0, 1, &deadPoolSRV);
+	context->VSSetShader(vertexShader, NULL, 0);
+	context->PSSetShader(LightShader, NULL, 0);
+	context->DrawIndexed(deadpoolModel.uniqueIndexBuffer.size(), 0, 0);
 	// END PART 2
 
 	D3D11_MAPPED_SUBRESOURCE DirectionalLightMap;
@@ -799,7 +771,7 @@ bool DEMO_APP::Run()
 	context->Unmap(ConstantPointLightBuffer, 0);
 	context->PSSetShader(LightShader, NULL, 0);
 	
-	
+#pragma endregion
 
 	// TODO: PART 1 STEP 8
 
@@ -811,6 +783,90 @@ bool DEMO_APP::Run()
 	return true; 
 }
 
+SCENE_TO_VRAM DEMO_APP::Movement(SCENE_TO_VRAM &_camera)
+{
+	_camera.viewMatrix = VS_ViewMatrix;
+
+	// local =	rot/trans/scale  TIMES   matrix
+	// global = MATRIX			 TIMES   rot/trans/scale
+
+	if (GetAsyncKeyState('W')) // move forward
+	{
+		XMVECTOR temp = { 0, 0, 10 * timer.Delta(), _camera.viewMatrix.r[3].m128_f32[3] };
+		camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), camera.viewMatrix);
+	}
+	if (GetAsyncKeyState('S')) // move backward
+	{
+		XMVECTOR temp = { 0, 0,5 * -timer.Delta(), _camera.viewMatrix.r[3].m128_f32[3] };
+		_camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), _camera.viewMatrix);
+	}
+	if (GetAsyncKeyState('A')) // look left
+	{
+		XMVECTOR temp = { _camera.viewMatrix.r[3].m128_f32[0], _camera.viewMatrix.r[3].m128_f32[1], _camera.viewMatrix.r[3].m128_f32[2], _camera.viewMatrix.r[3].m128_f32[3] };
+
+		_camera.viewMatrix.r[3].m128_f32[0] = 0;
+		_camera.viewMatrix.r[3].m128_f32[1] = 0;
+		_camera.viewMatrix.r[3].m128_f32[2] = 0;
+		_camera.viewMatrix.r[3].m128_f32[3] = 1;
+
+		_camera.viewMatrix = XMMatrixMultiply(_camera.viewMatrix, XMMatrixRotationY(-timer.Delta() * 10));
+		_camera.viewMatrix.r[3].m128_f32[0] = temp.m128_f32[0];
+		_camera.viewMatrix.r[3].m128_f32[1] = temp.m128_f32[1];
+		_camera.viewMatrix.r[3].m128_f32[2] = temp.m128_f32[2];
+
+	}
+	if (GetAsyncKeyState('D')) // look right
+	{
+		XMVECTOR temp = { _camera.viewMatrix.r[3].m128_f32[0], _camera.viewMatrix.r[3].m128_f32[1], _camera.viewMatrix.r[3].m128_f32[2], _camera.viewMatrix.r[3].m128_f32[3] };
+
+		_camera.viewMatrix.r[3].m128_f32[0] = 0;
+		_camera.viewMatrix.r[3].m128_f32[1] = 0;
+		_camera.viewMatrix.r[3].m128_f32[2] = 0;
+		_camera.viewMatrix.r[3].m128_f32[3] = 1;
+
+		_camera.viewMatrix = XMMatrixMultiply(_camera.viewMatrix, XMMatrixRotationY(timer.Delta() * 5));
+		_camera.viewMatrix.r[3].m128_f32[0] = temp.m128_f32[0];
+		_camera.viewMatrix.r[3].m128_f32[1] = temp.m128_f32[1];
+		_camera.viewMatrix.r[3].m128_f32[2] = temp.m128_f32[2];
+	}
+	if (GetAsyncKeyState('Q')) // strafe left
+	{
+		XMVECTOR temp = { -10 * timer.Delta(), 0, 0, _camera.viewMatrix.r[3].m128_f32[3] };
+		_camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), _camera.viewMatrix);
+	}
+	if (GetAsyncKeyState('E')) // strafe right
+	{
+		XMVECTOR temp = { 10 * timer.Delta(), 0, 0, _camera.viewMatrix.r[3].m128_f32[3] };
+		_camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), _camera.viewMatrix);
+	}
+	if (GetAsyncKeyState('Z')) // strafe left
+	{
+		XMVECTOR temp = { 0,  10 * timer.Delta(), 0, _camera.viewMatrix.r[3].m128_f32[3] };
+		_camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), camera.viewMatrix);
+	}
+	if (GetAsyncKeyState('X')) // strafe right
+	{
+		XMVECTOR temp = { 0,  -10 * timer.Delta(), 0, _camera.viewMatrix.r[3].m128_f32[3] };
+		_camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), _camera.viewMatrix);
+	}
+
+	if (GetAsyncKeyState(VK_RBUTTON))
+	{
+		POINT tempMouse;
+		GetCursorPos(&tempMouse);
+		float deltaX = currPos.x - tempMouse.x;
+		float deltaY = currPos.y - tempMouse.y;
+
+		XMVECTOR tempPos = { _camera.viewMatrix.r[3].m128_f32[0], _camera.viewMatrix.r[3].m128_f32[1], _camera.viewMatrix.r[3].m128_f32[2], _camera.viewMatrix.r[3].m128_f32[3] };
+
+		_camera.viewMatrix = XMMatrixMultiply(XMMatrixRotationX(-deltaY * (10 * timer.Delta())), _camera.viewMatrix);
+		_camera.viewMatrix = XMMatrixMultiply(XMMatrixRotationY(-deltaX * (10 * timer.Delta())), _camera.viewMatrix);
+
+		currPos = tempMouse;
+
+	}
+	return _camera;
+}
 //************************************************************
 //************ DESTRUCTION ***********************************
 //************************************************************
