@@ -583,16 +583,27 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	DirectionalLight.worldMatrix = XMMatrixTranslation(0, 3, 0);*/
 	DirectionalLight.directionalLightColor = { 0.0f,1.0f,0.0f,0.0f };
 	DirectionalLight.directionalLightDirection = { 0.0f,0.0f,1.0f,0.0f };
-	//SpotLight.worldMatrix = XMMatrixIdentity();
-	//SpotLight.worldMatrix = XMMatrixTranslation(1, 3, -1);
-	SpotLight.spotLightColor = { 0.3f,0.3f,1,1.0f };
+	SpotLight.worldMatrix = XMMatrixIdentity();
+	SpotLight.spotLightColor = { 0.3f,0.5f,1.0f,1.0f };
 	SpotLight.spotLightConeDirection = { 0.0f,-1.0f, 0.0f,0.0f };
-	SpotLight.spotLightConeRatio = {cosf(XMConvertToRadians(45)), cosf(XMConvertToRadians(90)), 0.0f, 0.0f};
+	SpotLight.spotLightConeRatio = {cosf(XMConvertToRadians(50)), cosf(XMConvertToRadians(100)), 0.0f, 0.0f};
 	SpotLight.spotLightPosition = { 0.0f,3.0f,0.0f,0.0f };
+	//SpotLight.worldMatrix = XMMatrixTranslation(SpotLight.spotLightPosition.x, SpotLight.spotLightPosition.y, SpotLight.spotLightPosition.z);
+	// rotation cone direction
+	//SpotLight.worldMatrix.r[0].m128_f32[0] = (SpotLight.spotLightConeDirection.x);
+	//SpotLight.worldMatrix.r[1].m128_f32[1] = (SpotLight.spotLightConeDirection.y);
+	//SpotLight.worldMatrix.r[2].m128_f32[2] = (SpotLight.spotLightConeDirection.z);
+	// position
+	SpotLight.worldMatrix.r[3].m128_f32[0] = SpotLight.spotLightPosition.x;
+	SpotLight.worldMatrix.r[3].m128_f32[1] = SpotLight.spotLightPosition.y;
+	SpotLight.worldMatrix.r[3].m128_f32[2] = SpotLight.spotLightPosition.z;
+	SpotLight.worldMatrix.r[3].m128_f32[3] = SpotLight.spotLightPosition.w;
 
 	PointLight.pointLightColor = { 1.0f,0.3f,0.3f,1.0f };
 	PointLight.pointLightPosition = { -4,1,4,1 };
 	PointLight.pointLightRadius = { 10,0.01f,0.01f,0.1f };
+	PointLight.worldMatrix = XMMatrixIdentity();
+	PointLight.worldMatrix = XMMatrixTranslation(PointLight.pointLightPosition.x, PointLight.pointLightPosition.y, PointLight.pointLightPosition.z);
 
 
 #pragma endregion
@@ -859,12 +870,136 @@ SCENE_TO_VRAM DEMO_APP::Movement(SCENE_TO_VRAM &_camera)
 
 		XMVECTOR tempPos = { _camera.viewMatrix.r[3].m128_f32[0], _camera.viewMatrix.r[3].m128_f32[1], _camera.viewMatrix.r[3].m128_f32[2], _camera.viewMatrix.r[3].m128_f32[3] };
 
+		/*_camera.viewMatrix.r[3].m128_f32[0] = 0;
+		_camera.viewMatrix.r[3].m128_f32[1] = 0;
+		_camera.viewMatrix.r[3].m128_f32[2] = 0;
+		_camera.viewMatrix.r[3].m128_f32[3] = 1;*/
+
 		_camera.viewMatrix = XMMatrixMultiply(XMMatrixRotationX(-deltaY * (10 * timer.Delta())), _camera.viewMatrix);
 		_camera.viewMatrix = XMMatrixMultiply(XMMatrixRotationY(-deltaX * (10 * timer.Delta())), _camera.viewMatrix);
+		//
+		//_camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(tempPos), _camera.viewMatrix);
+
+		//_camera.viewMatrix.r[3].m128_f32[0] = tempPos.m128_f32[0];
+		//_camera.viewMatrix.r[3].m128_f32[0] = tempPos.m128_f32[1];
+		//_camera.viewMatrix.r[3].m128_f32[0] = tempPos.m128_f32[2];
+
 
 		currPos = tempMouse;
 
 	}
+
+#pragma region pointlight movement
+	// moving the point light
+	if (GetAsyncKeyState(VK_LEFT))
+	{
+		XMVECTOR temp = { -10 * timer.Delta(),0,0,PointLight.worldMatrix.r[3].m128_f32[3] };
+		PointLight.worldMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), PointLight.worldMatrix);
+		PointLight.pointLightPosition.x = PointLight.worldMatrix.r[3].m128_f32[0];
+		PointLight.pointLightPosition.y = PointLight.worldMatrix.r[3].m128_f32[1];
+		PointLight.pointLightPosition.z = PointLight.worldMatrix.r[3].m128_f32[2];
+		PointLight.pointLightPosition.w = PointLight.worldMatrix.r[3].m128_f32[3];
+	}
+	if (GetAsyncKeyState(VK_RIGHT))
+	{
+		XMVECTOR temp = { 10 * timer.Delta(),0,0,PointLight.worldMatrix.r[3].m128_f32[3] };
+		PointLight.worldMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), PointLight.worldMatrix);
+		PointLight.pointLightPosition.x = PointLight.worldMatrix.r[3].m128_f32[0];
+		PointLight.pointLightPosition.y = PointLight.worldMatrix.r[3].m128_f32[1];
+		PointLight.pointLightPosition.z = PointLight.worldMatrix.r[3].m128_f32[2];
+		PointLight.pointLightPosition.w = PointLight.worldMatrix.r[3].m128_f32[3];
+	}
+	if (GetAsyncKeyState(VK_RCONTROL))
+	{
+		XMVECTOR temp = { 0,-10 * timer.Delta(),0,PointLight.worldMatrix.r[3].m128_f32[3] };
+		PointLight.worldMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), PointLight.worldMatrix);
+		PointLight.pointLightPosition.x = PointLight.worldMatrix.r[3].m128_f32[0];
+		PointLight.pointLightPosition.y = PointLight.worldMatrix.r[3].m128_f32[1];
+		PointLight.pointLightPosition.z = PointLight.worldMatrix.r[3].m128_f32[2];
+		PointLight.pointLightPosition.w = PointLight.worldMatrix.r[3].m128_f32[3];
+	}
+	if (GetAsyncKeyState(VK_RSHIFT))
+	{
+		XMVECTOR temp = { 0,10 * timer.Delta(),0,PointLight.worldMatrix.r[3].m128_f32[3] };
+		PointLight.worldMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), PointLight.worldMatrix);
+		PointLight.pointLightPosition.x = PointLight.worldMatrix.r[3].m128_f32[0];
+		PointLight.pointLightPosition.y = PointLight.worldMatrix.r[3].m128_f32[1];
+		PointLight.pointLightPosition.z = PointLight.worldMatrix.r[3].m128_f32[2];
+		PointLight.pointLightPosition.w = PointLight.worldMatrix.r[3].m128_f32[3];
+	}
+	if (GetAsyncKeyState(VK_UP))
+	{
+		XMVECTOR temp = { 0,0,10 * timer.Delta(),PointLight.worldMatrix.r[3].m128_f32[3] };
+		PointLight.worldMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), PointLight.worldMatrix);
+		PointLight.pointLightPosition.x = PointLight.worldMatrix.r[3].m128_f32[0];
+		PointLight.pointLightPosition.y = PointLight.worldMatrix.r[3].m128_f32[1];
+		PointLight.pointLightPosition.z = PointLight.worldMatrix.r[3].m128_f32[2];
+		PointLight.pointLightPosition.w = PointLight.worldMatrix.r[3].m128_f32[3];
+	}
+	if (GetAsyncKeyState(VK_DOWN))
+	{
+		XMVECTOR temp = { 0,0,-10 * timer.Delta(),PointLight.worldMatrix.r[3].m128_f32[3] };
+		PointLight.worldMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), PointLight.worldMatrix);
+		PointLight.pointLightPosition.x = PointLight.worldMatrix.r[3].m128_f32[0];
+		PointLight.pointLightPosition.y = PointLight.worldMatrix.r[3].m128_f32[1];
+		PointLight.pointLightPosition.z = PointLight.worldMatrix.r[3].m128_f32[2];
+		PointLight.pointLightPosition.w = PointLight.worldMatrix.r[3].m128_f32[3];
+	}
+#pragma endregion
+#pragma region spotlight movement
+	if (GetAsyncKeyState('J'))
+	{
+		XMVECTOR temp = { -10 * timer.Delta(),0,0,SpotLight.worldMatrix.r[3].m128_f32[3] };
+		SpotLight.worldMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), SpotLight.worldMatrix);
+		SpotLight.spotLightPosition.x = SpotLight.worldMatrix.r[3].m128_f32[0];
+		SpotLight.spotLightPosition.y = SpotLight.worldMatrix.r[3].m128_f32[1];
+		SpotLight.spotLightPosition.z = SpotLight.worldMatrix.r[3].m128_f32[2];
+		SpotLight.spotLightPosition.w = SpotLight.worldMatrix.r[3].m128_f32[3];
+	}
+	if (GetAsyncKeyState('L'))
+	{
+		XMVECTOR temp = { 10 * timer.Delta(),0,0,SpotLight.worldMatrix.r[3].m128_f32[3] };
+		SpotLight.worldMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), SpotLight.worldMatrix);
+		SpotLight.spotLightPosition.x = SpotLight.worldMatrix.r[3].m128_f32[0];
+		SpotLight.spotLightPosition.y = SpotLight.worldMatrix.r[3].m128_f32[1];
+		SpotLight.spotLightPosition.z = SpotLight.worldMatrix.r[3].m128_f32[2];
+		SpotLight.spotLightPosition.w = SpotLight.worldMatrix.r[3].m128_f32[3];
+	}
+	if (GetAsyncKeyState('I'))
+	{
+		XMVECTOR temp = {0, 0,10 * timer.Delta(),SpotLight.worldMatrix.r[3].m128_f32[3] };
+		SpotLight.worldMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), SpotLight.worldMatrix);
+		SpotLight.spotLightPosition.x = SpotLight.worldMatrix.r[3].m128_f32[0];
+		SpotLight.spotLightPosition.y = SpotLight.worldMatrix.r[3].m128_f32[1];
+		SpotLight.spotLightPosition.z = SpotLight.worldMatrix.r[3].m128_f32[2];
+		SpotLight.spotLightPosition.w = SpotLight.worldMatrix.r[3].m128_f32[3];
+	}
+	if (GetAsyncKeyState('K'))
+	{
+		XMVECTOR temp = {0,0, -10 * timer.Delta(),SpotLight.worldMatrix.r[3].m128_f32[3] };
+		SpotLight.worldMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), SpotLight.worldMatrix);
+		SpotLight.spotLightPosition.x = SpotLight.worldMatrix.r[3].m128_f32[0];
+		SpotLight.spotLightPosition.y = SpotLight.worldMatrix.r[3].m128_f32[1];
+		SpotLight.spotLightPosition.z = SpotLight.worldMatrix.r[3].m128_f32[2];
+		SpotLight.spotLightPosition.w = SpotLight.worldMatrix.r[3].m128_f32[3];
+	}
+	if (GetAsyncKeyState('U'))
+	{
+		SpotLight.spotLightConeDirection.x -= timer.Delta();
+	}
+	if (GetAsyncKeyState('O'))
+	{
+		SpotLight.spotLightConeDirection.x += timer.Delta();
+	}
+	if (GetAsyncKeyState('N'))
+	{
+		SpotLight.spotLightConeDirection.z -= timer.Delta();
+	}
+	if (GetAsyncKeyState('M'))
+	{
+		SpotLight.spotLightConeDirection.z += timer.Delta();
+	}
+#pragma endregion
 	return _camera;
 }
 //************************************************************

@@ -34,10 +34,6 @@ cbuffer pointLight : register(b2)
 	float4 pointLightRadius;
 	matrix pointWorldMatrix;
 }
-float4 magnitude(float4 pos1)
-{
-	return sqrt(pos1.x*pos1.x + pos1.y*pos1.y + pos1.z*pos1.z + pos1.w *pos1.w);
-}
 
 float4 main(INPUT_PIXEL input) : SV_TARGET
 {
@@ -56,7 +52,7 @@ float4 main(INPUT_PIXEL input) : SV_TARGET
 	float POINTLIGHTRATIO = clamp(dot(POINTLIGHTDIRECTION.xyz, normalize(input.normal)),0,1);
 	//                           light ratio      light color     surface color
 	float4 POINTLIGHTRESULT = (POINTLIGHTRATIO * pointLightColor * baseColor);
-	//                                                               light position          surface position          light radius
+	//                                                      light position           surface position          light radius
 	float POINTLIGHTATTENUATION = 1.0 - saturate(length(pointLightPosition.xyz - input.worldPosition.xyz) / pointLightRadius.x);
 	//
 	POINTLIGHTRESULT = POINTLIGHTRESULT * POINTLIGHTATTENUATION;
@@ -70,14 +66,16 @@ float4 main(INPUT_PIXEL input) : SV_TARGET
 	float SPOTLIGHTRATIO = clamp(dot(SPOTLIGHTDIRECTION, normalize(input.normal)), 0, 1);
 	//                        spot light factor     light ratio     light color  surface color
 	float4 SPOTLIGHTRESULT = SPOTLIGHTSPOTFACTOR * SPOTLIGHTRATIO * spotLightColor *baseColor;
-	//                                            
-	//float SPOTLIGHTATTENUATION1 = 1.0 - clamp(magnitude(spotLightPosition.xyz - input.worldPosition.xyz) / 0.5f, 0, 1);
-	////
-	//float SPOTLIGHTATTENUATION2 = 1.0 - clamp((spotLightConeRatio.x - SPOTLIGHTSURFACERATIO) / (spotLightConeRatio.x - spotLightConeRatio.y), 0, 1);
-	////
-	//float TOTALATTENUATION = SPOTLIGHTATTENUATION1 * SPOTLIGHTATTENUATION2;
+	//                                                   light position           surface position         light radius
+	float SPOTLIGHTATTENUATION1 = 1.0 - saturate(length(spotLightPosition.xyz - input.worldPosition.xyz) / 10);
+	//                                               innerconeration           surfaceratio             innerconeration         outerconeratio
+	float SPOTLIGHTATTENUATION2 = 1.0 - saturate( (spotLightConeRatio.x - SPOTLIGHTSURFACERATIO) / (spotLightConeRatio.x - spotLightConeRatio.y) );
+	//
+	//float TOTALATTENUATION = SPOTLIGHTATTENUATION1 * SPOTLIGHTATTENUATION2;   // gives a return token error
+	//
+	SPOTLIGHTRESULT = /*TOTALATTENUATION*/SPOTLIGHTRESULT * (SPOTLIGHTATTENUATION1 * SPOTLIGHTATTENUATION2);
 
-	return saturate(float4(POINTLIGHTRESULT.xyz + DIRECTIONALRESULT.xyz + SPOTLIGHTRESULT.xyz + baseColor.rgb, baseColor.a));//saturate(DIRECTIONALRESULT + SPOTLIGHTRESULT + baseColor);
+	return saturate(float4(POINTLIGHTRESULT.xyz + DIRECTIONALRESULT.xyz + SPOTLIGHTRESULT.xyz + baseColor.rgb, baseColor.a));
 
 }
 
