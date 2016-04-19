@@ -75,7 +75,7 @@ float4 main(INPUT_PIXEL input) : SV_TARGET
 	//
 	SPOTLIGHTRESULT = /*TOTALATTENUATION*/SPOTLIGHTRESULT * (SPOTLIGHTATTENUATION1 * SPOTLIGHTATTENUATION2);
 
-	return saturate(float4(POINTLIGHTRESULT.xyz + DIRECTIONALRESULT.xyz + SPOTLIGHTRESULT.xyz + baseColor.rgb, baseColor.a));
+	return saturate(float4(POINTLIGHTRESULT.xyz + DIRECTIONALRESULT.xyz + SPOTLIGHTRESULT.xyz /*+ baseColor.rgb*/, baseColor.a));
 
 }
 

@@ -40,9 +40,6 @@ struct SIMPLE_VERTEX
 struct COMPLEX_VERTEX
 {
 	float3 pos;
-	float3 uv;
-	float3 normal;
-	float3 color;
 };
 
 struct SEND_TO_RAM

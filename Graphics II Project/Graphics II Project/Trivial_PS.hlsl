@@ -6,6 +6,8 @@ struct INPUT_PIXEL
 	float4 projectedCoordinate : SV_POSITION;
 	float3 uv : UV;
 	float3 normal : NORMAL;
+	float3 worldPosition : WORLD_POSITION;
+
 };
 
 texture2D baseTexture : register(t0); // first texture

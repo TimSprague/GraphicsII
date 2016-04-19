@@ -47,6 +47,7 @@ OUTPUT_VERTEX main( INPUT_VERTEX fromVertexBuffer )
 	// TODO : PART 3 STEP 7
 	sendToRasterizer.projectedCoordinate = localPos;
 	sendToRasterizer.uv = fromVertexBuffer.uv;
+	// the w must be a 0 so that it rotates the normals on the local position and not in the world
 	sendToRasterizer.normal = mul(float4(fromVertexBuffer.normal, 0), worldMatrix).xyz;
 	//sendToRasterizer.normal = fromVertexBuffer.normal;
 	// END PART 3

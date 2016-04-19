@@ -25,6 +25,8 @@
 #include "faceDiff.h"
 #include "Model.h"
 #include "Lights.csh"
+#include "SkyBoxPixelShader_PS.csh"
+#include "SkyBoxVertexShader_VS.csh"
 
 
 
@@ -55,17 +57,18 @@ class DEMO_APP
 	D3D11_VIEWPORT viewport;
 	ID3D11InputLayout *input = {};                    // pointer to the direct3d input
 	ID3D11InputLayout *starInput = {};                // pointer to the direct3d input for the star
+	ID3D11InputLayout *skyBoxInput = {};              // pointer to the input for the skybox
 	POINT currPos;
 
 	// TODO: PART 2 STEP 2
 	
-	ID3D11Buffer *vertexStarBuffer, *vertexMiniGunBuffer, *vertexGroundBuffer, *vertexDeadPoolBuffer;// pointer to hold the information in Vram
+	ID3D11Buffer *vertexStarBuffer, *vertexMiniGunBuffer, *vertexGroundBuffer, *vertexDeadPoolBuffer, *vertexSkyBoxBuffer;// pointer to hold the information in Vram
 	unsigned int numVerts = 12;                      // number of verts in the circle
 	ID3D11Buffer *indexBuffer;                       // pointer to hold the points in order to draw
 	ID3D11Buffer *starIndexBuffer;                   // pointer to hold the points in order of the star
 	ID3D11Buffer *MinigunIndexBuffer;                // pointer to hold the points in order of the gun
 	ID3D11Buffer *groundIndexBuffer;                 // pointer to hold the points in order of the ground
-	ID3D11Buffer *deadPoolIndexBuffer;
+	ID3D11Buffer *deadPoolIndexBuffer, *skyBoxIndexBuffer;
 	ID3D11Texture2D *depthStencil = NULL;            // pointer to the "depth buffer"
 	ID3D11DepthStencilView *depthStencilView;        // the depth stencil
 
@@ -76,6 +79,8 @@ class DEMO_APP
 	ID3D11VertexShader *StarVertexShader;
 	ID3D11PixelShader *StarPIxelShader;
 	ID3D11PixelShader *LightShader;
+	ID3D11PixelShader *skyBoxPixelShader;
+	ID3D11VertexShader *skyBoxVertexShader;
 
 	// BEGIN PART 3
 	// TODO: PART 3 STEP 1
@@ -91,25 +96,22 @@ class DEMO_APP
 	XTime timer;
 	// TODO: PART 3 STEP 2b
 	
-	OBJECT_TO_VRAM star;
-	OBJECT_TO_VRAM miniGun;
-	OBJECT_TO_VRAM ground;
-	OBJECT_TO_VRAM Deadpool;
+
+	OBJECT_TO_VRAM star, miniGun, ground, Deadpool, skyBox;
 	SCENE_TO_VRAM camera;
 	POINT_LIGHT PointLight;
 	SPOT_LIGHT SpotLight;
 	DIRECTIONAL_LIGHT DirectionalLight;
 
-	Model miniGunModel;
-	Model groundModel;
-	Model deadpoolModel;
+	Model miniGunModel, groundModel,deadpoolModel;
+
 
 	// TODO: PART 3 STEP 4a
 	ID3D11Texture2D *texturesArray;     // pointer to the array that holds the number of miplevels
 	ID3D11ShaderResourceView *SRV;      // for old header cube
 	ID3D11ShaderResourceView *GunSRV;   // shader for the gun texture
 	ID3D11ShaderResourceView *GroundSRV;
-	ID3D11ShaderResourceView *deadPoolSRV;
+	ID3D11ShaderResourceView *deadPoolSRV, *skyboxSRV;
 	ID3D11SamplerState *sampleState;     // pointer for the sample
 
 	RGBA backcolor;
@@ -244,6 +246,42 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #pragma endregion
 
+#pragma region skybox
+
+	COMPLEX_VERTEX skyBoxCombo[8] =
+	{
+		// back left top
+		{ float3(-1,1,1)},
+
+		// back right top
+		{ float3(1,1,1)},
+
+		// back right bottom
+		{ float3(1,-1,1)},
+
+		// front right bottom
+		{ float3(1,-1,-1)},
+
+		// front left bottom
+		{ float3(-1,-1,-1)},
+
+		// front left top
+		{ float3(-1,1,-1)},
+
+		// front right top
+		{ float3(1,1,-1)},
+
+		// back left bottom
+		{ float3(-1,-1,1)},
+
+	};
+
+	UINT SkyBoxindexOrder[36] =
+//     top face     right face    front face    left face     back face    bootom face
+	{0,1,6, 0,6,5, 1,2,3, 1,3,6, 5,6,3, 5,3,4, 0,5,4, 0,4,7, 1,0,7, 1,7,2, 4,3,2, 4,2,7};
+	
+#pragma endregion
+
 #pragma region model loading
 
 	//14967             14967             14967
@@ -300,6 +338,14 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	deadPoolBufferDesc.ByteWidth = sizeof(Model::vertex_Normal) * (UINT)deadpoolModel.uniqueVerts.size();
 	deadPoolBufferDesc.MiscFlags = NULL;
 
+	D3D11_BUFFER_DESC skyboxBufferDesc;
+	ZeroMemory(&skyboxBufferDesc, sizeof(D3D11_BUFFER_DESC));
+	skyboxBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	skyboxBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	skyboxBufferDesc.CPUAccessFlags = NULL;
+	skyboxBufferDesc.ByteWidth = sizeof(COMPLEX_VERTEX) * 8;
+	skyboxBufferDesc.MiscFlags = NULL;
+
 #pragma endregion
 
 #pragma region IndexBuffers
@@ -342,6 +388,15 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	deadPoolIndexBufferDesc.ByteWidth = sizeof(UINT) * (UINT)deadpoolModel.uniqueIndexBuffer.size();
 	deadPoolIndexBufferDesc.MiscFlags = NULL;
 	deadPoolIndexBufferDesc.StructureByteStride = sizeof(const unsigned int);
+
+	D3D11_BUFFER_DESC skyboxIndexBufferDesc;
+	ZeroMemory(&skyboxIndexBufferDesc, sizeof(D3D11_BUFFER_DESC));
+	skyboxIndexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	skyboxIndexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	skyboxIndexBufferDesc.CPUAccessFlags = NULL;
+	skyboxIndexBufferDesc.ByteWidth = sizeof(UINT) * 36;
+	skyboxIndexBufferDesc.MiscFlags = NULL;
+	skyboxIndexBufferDesc.StructureByteStride = sizeof(UINT);
 #pragma endregion
 
 #pragma region Textures
@@ -428,6 +483,15 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	deadPoolIndexData.SysMemPitch = 0;
 	deadPoolIndexData.SysMemSlicePitch = 0;
 
+	D3D11_SUBRESOURCE_DATA subSkyboxData = {};
+	subSkyboxData.pSysMem = skyBoxCombo;
+	subSkyboxData.SysMemPitch = 0;
+	subSkyboxData.SysMemSlicePitch = 0;
+
+	D3D11_SUBRESOURCE_DATA skyboxIndexData = {};
+	skyboxIndexData.pSysMem = SkyBoxindexOrder;
+	skyboxIndexData.SysMemPitch = 0;
+	skyboxIndexData.SysMemSlicePitch = 0;
 
 	D3D11_SUBRESOURCE_DATA subTextureData[faceDiff_numlevels] = {};
 	for (int i = 0; i < faceDiff_numlevels; i++)
@@ -454,6 +518,9 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	device->CreateBuffer(&deadPoolBufferDesc, &deadPoolData, &vertexDeadPoolBuffer);
 	device->CreateBuffer(&deadPoolIndexBufferDesc, &deadPoolIndexData, &deadPoolIndexBuffer);
 
+	device->CreateBuffer(&skyboxBufferDesc, &subSkyboxData, &vertexSkyBoxBuffer);
+	device->CreateBuffer(&skyboxIndexBufferDesc, &skyboxIndexData, &skyBoxIndexBuffer);
+
 	device->CreateTexture2D(&descDepth, NULL, &depthStencil);
 	device->CreateDepthStencilView(depthStencil, &descDSV, &depthStencilView);
 	device->CreateTexture2D(&textureDesc, subTextureData, &texturesArray);
@@ -463,17 +530,20 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	CreateDDSTextureFromFile(device, L"../Graphics II Project/sbv9148irj-Deadpool/Deadpool/WEP_MP7_TEXTSET_Color_NormX.dds", NULL, &GunSRV);
 	CreateDDSTextureFromFile(device, L"Seamless tileable ice snow cracks ground texture.dds", NULL, &GroundSRV);
 	CreateDDSTextureFromFile(device, L"../Graphics II Project/sbv9148irj-Deadpool/Deadpool/DPROP_DeadpoolSword_TEXSET_Color_NormX.dds", NULL, &deadPoolSRV);
+	CreateDDSTextureFromFile(device, L"SunsetSkybox.dds", NULL, &skyboxSRV);
 
 	device->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), nullptr, &vertexShader);
 	device->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), nullptr, &pixelShader);
 	device->CreateVertexShader(Star_VS, sizeof(Star_VS), nullptr, &StarVertexShader);
 	device->CreatePixelShader(Star_PS, sizeof(Star_PS), nullptr, &StarPIxelShader);
 	device->CreatePixelShader(Lights, sizeof(Lights), nullptr, &LightShader);
+	device->CreatePixelShader(SkyBoxPixelShader_PS, sizeof(SkyBoxPixelShader_PS), nullptr, &skyBoxPixelShader);
+	device->CreateVertexShader(SkyBoxVertexShader_VS, sizeof(SkyBoxVertexShader_VS),nullptr, &skyBoxVertexShader);
 
 #pragma endregion
 	// TODO: PART 2 STEP 8a
 
-#pragma region Layouts
+#pragma region INPUTS
 	D3D11_INPUT_ELEMENT_DESC vLayout[] =
 	{
 		{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,D3D11_APPEND_ALIGNED_ELEMENT,D3D11_INPUT_PER_VERTEX_DATA,0},
@@ -486,10 +556,16 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 		{ "POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,D3D11_APPEND_ALIGNED_ELEMENT,D3D11_INPUT_PER_VERTEX_DATA,0 },
 		{ "COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,D3D11_APPEND_ALIGNED_ELEMENT,D3D11_INPUT_PER_VERTEX_DATA,0 }
 	};
+
+	D3D11_INPUT_ELEMENT_DESC skyboxLayout[] = 
+	{
+		{ "POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,D3D11_APPEND_ALIGNED_ELEMENT,D3D11_INPUT_PER_VERTEX_DATA,0 }
+	};
 	// TODO: PART 2 STEP 8b
 	//UINT num_elements = sizeof(vLayout) / sizeof(vLayout[0]);
 	device->CreateInputLayout(vLayout, ARRAYSIZE(vLayout), Trivial_VS, sizeof(Trivial_VS), &input);
 	device->CreateInputLayout(starLayout, ARRAYSIZE(starLayout), Star_VS, sizeof(Star_VS), &starInput);
+	device->CreateInputLayout(skyboxLayout, ARRAYSIZE(skyboxLayout), SkyBoxVertexShader_VS, sizeof(SkyBoxVertexShader_VS), &skyBoxInput);
 
 #pragma endregion
 	// TODO: PART 3 STEP 3
@@ -579,20 +655,19 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	Deadpool.worldMatrix.r[3].m128_f32[2] = 0;
 
 	// lighting
-	/*DirectionalLight.worldMatrix = XMMatrixIdentity();
-	DirectionalLight.worldMatrix = XMMatrixTranslation(0, 3, 0);*/
+	DirectionalLight.worldMatrix = XMMatrixIdentity();
 	DirectionalLight.directionalLightColor = { 0.0f,1.0f,0.0f,0.0f };
 	DirectionalLight.directionalLightDirection = { 0.0f,0.0f,1.0f,0.0f };
+	DirectionalLight.worldMatrix.r[3].m128_f32[0] = DirectionalLight.directionalLightDirection.x;
+	DirectionalLight.worldMatrix.r[3].m128_f32[1] = DirectionalLight.directionalLightDirection.y;
+	DirectionalLight.worldMatrix.r[3].m128_f32[2] = DirectionalLight.directionalLightDirection.z;
+	DirectionalLight.worldMatrix.r[3].m128_f32[3] = DirectionalLight.directionalLightDirection.w;
+
 	SpotLight.worldMatrix = XMMatrixIdentity();
 	SpotLight.spotLightColor = { 0.3f,0.5f,1.0f,1.0f };
 	SpotLight.spotLightConeDirection = { 0.0f,-1.0f, 0.0f,0.0f };
 	SpotLight.spotLightConeRatio = {cosf(XMConvertToRadians(50)), cosf(XMConvertToRadians(100)), 0.0f, 0.0f};
 	SpotLight.spotLightPosition = { 0.0f,3.0f,0.0f,0.0f };
-	//SpotLight.worldMatrix = XMMatrixTranslation(SpotLight.spotLightPosition.x, SpotLight.spotLightPosition.y, SpotLight.spotLightPosition.z);
-	// rotation cone direction
-	//SpotLight.worldMatrix.r[0].m128_f32[0] = (SpotLight.spotLightConeDirection.x);
-	//SpotLight.worldMatrix.r[1].m128_f32[1] = (SpotLight.spotLightConeDirection.y);
-	//SpotLight.worldMatrix.r[2].m128_f32[2] = (SpotLight.spotLightConeDirection.z);
 	// position
 	SpotLight.worldMatrix.r[3].m128_f32[0] = SpotLight.spotLightPosition.x;
 	SpotLight.worldMatrix.r[3].m128_f32[1] = SpotLight.spotLightPosition.y;
@@ -604,6 +679,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	PointLight.pointLightRadius = { 10,0.01f,0.01f,0.1f };
 	PointLight.worldMatrix = XMMatrixIdentity();
 	PointLight.worldMatrix = XMMatrixTranslation(PointLight.pointLightPosition.x, PointLight.pointLightPosition.y, PointLight.pointLightPosition.z);
+
+	skyBox.worldMatrix = XMMatrixIdentity();
 
 
 #pragma endregion
@@ -695,6 +772,25 @@ bool DEMO_APP::Run()
 
 #pragma region Draw
 
+	D3D11_MAPPED_SUBRESOURCE skyboxMap;
+	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &skyboxMap);
+	memcpy(skyboxMap.pData, &skyBox, sizeof(COMPLEX_VERTEX));
+	context->Unmap(ConstObjectBuffer, 0);
+
+	UINT skyboxStride = sizeof(COMPLEX_VERTEX);
+	UINT skyboxOffset = 0;
+	context->IASetVertexBuffers(0, 1, &vertexSkyBoxBuffer, &skyboxStride, &skyboxOffset);
+	context->IASetIndexBuffer(skyBoxIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	context->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	context->IASetInputLayout(skyBoxInput);
+	context->PSSetShaderResources(0, 1, &skyboxSRV);
+	context->VSSetShader(skyBoxVertexShader, NULL, 0);
+	context->PSSetShader(skyBoxPixelShader, NULL, 0);
+	context->DrawIndexed(36, 0, 0);
+
+	// sets the skybox out to 1 and everything else below is at its own depth
+	context->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH, 1, 0);
+
 	D3D11_MAPPED_SUBRESOURCE triMap;
 	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &triMap);
 	memcpy(triMap.pData, &star, sizeof(OBJECT_TO_VRAM));
@@ -781,6 +877,8 @@ bool DEMO_APP::Run()
 	memcpy(PointLightMap.pData, &PointLight, sizeof(POINT_LIGHT));
 	context->Unmap(ConstantPointLightBuffer, 0);
 	context->PSSetShader(LightShader, NULL, 0);
+
+
 	
 #pragma endregion
 
@@ -1000,6 +1098,23 @@ SCENE_TO_VRAM DEMO_APP::Movement(SCENE_TO_VRAM &_camera)
 		SpotLight.spotLightConeDirection.z += timer.Delta();
 	}
 #pragma endregion
+#pragma region directional movement
+	XMMATRIX rotation = XMMatrixIdentity();
+	rotation.r[3].m128_f32[0] = DirectionalLight.directionalLightDirection.x;
+	rotation.r[3].m128_f32[1] = DirectionalLight.directionalLightDirection.y;
+	rotation.r[3].m128_f32[2] = DirectionalLight.directionalLightDirection.z;
+	rotation = XMMatrixMultiply(rotation, XMMatrixRotationX(XMConvertToRadians((float)timer.Delta() * 10)));
+	DirectionalLight.directionalLightDirection.x = rotation.r[3].m128_f32[0];
+	DirectionalLight.directionalLightDirection.y = rotation.r[3].m128_f32[1];
+	DirectionalLight.directionalLightDirection.z = rotation.r[3].m128_f32[2];
+#pragma endregion
+
+	//// move the skybox to match the cameras postion so you can never get to the edge of the skybox
+	//skyBox.worldMatrix.r[3].m128_f32[0] = _camera.viewMatrix.r[3].m128_f32[0];
+	//skyBox.worldMatrix.r[3].m128_f32[1] = _camera.viewMatrix.r[3].m128_f32[1];
+	//skyBox.worldMatrix.r[3].m128_f32[2] = _camera.viewMatrix.r[3].m128_f32[2];
+	//skyBox.worldMatrix.r[3].m128_f32[3] = _camera.viewMatrix.r[3].m128_f32[3];
+
 	return _camera;
 }
 //************************************************************
