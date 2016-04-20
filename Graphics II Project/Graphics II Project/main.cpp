@@ -114,6 +114,10 @@ class DEMO_APP
 	ID3D11ShaderResourceView *deadPoolSRV, *skyboxSRV;
 	ID3D11SamplerState *sampleState;     // pointer for the sample
 
+	ID3D11RasterizerState *rasterizer1, *rasterizer2;
+
+	
+
 	RGBA backcolor;
 	XMMATRIX VS_ViewMatrix = XMMatrixIdentity();
 
@@ -290,7 +294,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	deadpoolModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/deadpool sword 1.obj", deadpoolModel.pos, deadpoolModel.uv, deadpoolModel.normal);
 
-
 	groundModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/Ground.obj", groundModel.pos, groundModel.uv, groundModel.normal);
 	//miniGunModel.loadOBJ("../Graphics II Project/Dragon/dragon1.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
 
@@ -432,12 +435,12 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 	descDSV.Texture2D.MipSlice = 0;
 
-	D3D11_SAMPLER_DESC sampleDesc = {};
-	sampleDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-	sampleDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-	sampleDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-	sampleDesc.ComparisonFunc = D3D11_COMPARISON_GREATER;
-	sampleDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	//D3D11_SAMPLER_DESC sampleDesc = {};
+	//sampleDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	//sampleDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	//sampleDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	//sampleDesc.ComparisonFunc = D3D11_COMPARISON_GREATER;
+	//sampleDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
 #pragma endregion
 
@@ -656,7 +659,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	// lighting
 	DirectionalLight.worldMatrix = XMMatrixIdentity();
-	DirectionalLight.directionalLightColor = { 0.0f,1.0f,0.0f,0.0f };
+	DirectionalLight.directionalLightColor = { 0.3f,1.0f,0.3f,0.0f };
 	DirectionalLight.directionalLightDirection = { 0.0f,0.0f,1.0f,0.0f };
 	DirectionalLight.worldMatrix.r[3].m128_f32[0] = DirectionalLight.directionalLightDirection.x;
 	DirectionalLight.worldMatrix.r[3].m128_f32[1] = DirectionalLight.directionalLightDirection.y;
@@ -681,10 +684,33 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	PointLight.worldMatrix = XMMatrixTranslation(PointLight.pointLightPosition.x, PointLight.pointLightPosition.y, PointLight.pointLightPosition.z);
 
 	skyBox.worldMatrix = XMMatrixIdentity();
+	skyBox.worldMatrix = XMMatrixTranslation(0, 0, 0);
 
 
 #pragma endregion
-	device->CreateSamplerState(&sampleDesc,&sampleState);
+
+	D3D11_RASTERIZER_DESC rasterizer1desc;
+	ZeroMemory(&rasterizer1desc, sizeof(D3D11_RASTERIZER_DESC));
+	rasterizer1desc.FillMode = D3D11_FILL_SOLID;
+	rasterizer1desc.CullMode = D3D11_CULL_BACK;
+	rasterizer1desc.FrontCounterClockwise = TRUE;
+	rasterizer1desc.DepthClipEnable = TRUE;
+	rasterizer1desc.MultisampleEnable = TRUE;
+
+	device->CreateRasterizerState(&rasterizer1desc,&rasterizer1);
+
+	D3D11_RASTERIZER_DESC rasterizer2desc;
+	ZeroMemory(&rasterizer2desc, sizeof(D3D11_RASTERIZER_DESC));
+	rasterizer2desc.FillMode = D3D11_FILL_SOLID;
+	rasterizer2desc.CullMode = D3D11_CULL_BACK;
+	rasterizer2desc.FrontCounterClockwise = false;
+	rasterizer2desc.DepthClipEnable = TRUE;
+	rasterizer2desc.MultisampleEnable = TRUE;
+
+
+	device->CreateRasterizerState(&rasterizer2desc,&rasterizer2);
+
+	//device->CreateSamplerState(&sampleDesc,&sampleState);
 
 }
 
@@ -757,24 +783,20 @@ bool DEMO_APP::Run()
 	context->VSSetShader(vertexShader, NULL, 0);
 	context->PSSetShader(pixelShader, NULL, 0);
 	//context->PSSetShaderResources(0, 1, &SRV);
-	context->PSSetSamplers(0, 1, &sampleState);
+	//context->PSSetSamplers(0, 1, &sampleState);
 	
 	// TODO: PART 2 STEP 9c
 	
 	context->IASetInputLayout(input);
 
-	// TODO: PART 2 STEP 9d
-	
-
-	// TODO: PART 2 STEP 10
-	
-	//context->DrawIndexed(1692, 0, 0);
-
 #pragma region Draw
+
+	// for the anti aliseing
+	context->RSSetState(rasterizer1);
 
 	D3D11_MAPPED_SUBRESOURCE skyboxMap;
 	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &skyboxMap);
-	memcpy(skyboxMap.pData, &skyBox, sizeof(COMPLEX_VERTEX));
+	memcpy(skyboxMap.pData, &skyBox, sizeof(OBJECT_TO_VRAM));
 	context->Unmap(ConstObjectBuffer, 0);
 
 	UINT skyboxStride = sizeof(COMPLEX_VERTEX);
@@ -791,6 +813,24 @@ bool DEMO_APP::Run()
 	// sets the skybox out to 1 and everything else below is at its own depth
 	context->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH, 1, 0);
 
+	context->RSSetState(rasterizer2);
+
+	D3D11_MAPPED_SUBRESOURCE groundMap;
+	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &groundMap);
+	memcpy(groundMap.pData, &ground, sizeof(OBJECT_TO_VRAM));
+	context->Unmap(ConstObjectBuffer, 0);
+
+	UINT groundstride = sizeof(Model::vertex_Normal);
+	UINT groundOffset = 0;
+	context->IASetVertexBuffers(0, 1, &vertexGroundBuffer, &groundstride, &groundOffset);
+	context->IASetIndexBuffer(groundIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	context->IASetInputLayout(input);
+	context->PSSetShaderResources(0, 1, &GroundSRV);
+	context->VSSetShader(vertexShader, NULL, 0);
+	context->PSSetShader(LightShader, NULL, 0);
+	context->DrawIndexed(groundModel.uniqueIndexBuffer.size(), 0, 0);
+
+
 	D3D11_MAPPED_SUBRESOURCE triMap;
 	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &triMap);
 	memcpy(triMap.pData, &star, sizeof(OBJECT_TO_VRAM));
@@ -805,8 +845,7 @@ bool DEMO_APP::Run()
 	// set the shaders for the grid to be drawn
 	context->VSSetShader(StarVertexShader, NULL, 0);
 	context->PSSetShader(StarPIxelShader, NULL, 0);
-	// for the anti aliseing
-	//context->RSSetState(rasterizerState);
+
 	context->DrawIndexed(60, 0, 0);
 
 	D3D11_MAPPED_SUBRESOURCE gunMap;
@@ -823,26 +862,6 @@ bool DEMO_APP::Run()
 	context->VSSetShader(vertexShader, NULL, 0);
 	context->PSSetShader(LightShader, NULL, 0);
 	context->DrawIndexed(miniGunModel.uniqueIndexBuffer.size(), 0, 0);
-
-
-	D3D11_MAPPED_SUBRESOURCE groundMap;
-	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &groundMap);
-	memcpy(groundMap.pData, &ground, sizeof(OBJECT_TO_VRAM));
-	context->Unmap(ConstObjectBuffer, 0);
-
-	UINT groundstride = sizeof(Model::vertex_Normal);
-	UINT groundOffset = 0;
-
-	context->IASetVertexBuffers(0, 1, &vertexGroundBuffer, &groundstride, &groundOffset);
-	context->IASetIndexBuffer(groundIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-
-	context->IASetInputLayout(input);
-
-	context->PSSetShaderResources(0, 1, &GroundSRV);
-	context->VSSetShader(vertexShader, NULL, 0);
-	context->PSSetShader(LightShader, NULL, 0);
-
-	context->DrawIndexed(groundModel.uniqueIndexBuffer.size(), 0, 0);
 
 	D3D11_MAPPED_SUBRESOURCE DeadPoolMap;
 	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DeadPoolMap);
@@ -963,25 +982,26 @@ SCENE_TO_VRAM DEMO_APP::Movement(SCENE_TO_VRAM &_camera)
 	{
 		POINT tempMouse;
 		GetCursorPos(&tempMouse);
-		float deltaX = currPos.x - tempMouse.x;
-		float deltaY = currPos.y - tempMouse.y;
+		float deltaX = tempMouse.x - currPos.x;
+		float deltaY = tempMouse.y - currPos.y;
+
+		//_camera.viewMatrix = XMMatrixInverse(0, _camera.viewMatrix);
 
 		XMVECTOR tempPos = { _camera.viewMatrix.r[3].m128_f32[0], _camera.viewMatrix.r[3].m128_f32[1], _camera.viewMatrix.r[3].m128_f32[2], _camera.viewMatrix.r[3].m128_f32[3] };
 
-		/*_camera.viewMatrix.r[3].m128_f32[0] = 0;
+		_camera.viewMatrix.r[3].m128_f32[0] = 0;
 		_camera.viewMatrix.r[3].m128_f32[1] = 0;
 		_camera.viewMatrix.r[3].m128_f32[2] = 0;
-		_camera.viewMatrix.r[3].m128_f32[3] = 1;*/
+		//_camera.viewMatrix.r[3].m128_f32[3] = 1;
 
-		_camera.viewMatrix = XMMatrixMultiply(XMMatrixRotationX(-deltaY * (10 * timer.Delta())), _camera.viewMatrix);
-		_camera.viewMatrix = XMMatrixMultiply(XMMatrixRotationY(-deltaX * (10 * timer.Delta())), _camera.viewMatrix);
-		//
-		//_camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(tempPos), _camera.viewMatrix);
+		_camera.viewMatrix = XMMatrixMultiply(XMMatrixRotationX(deltaY * (10 * timer.Delta())),_camera.viewMatrix);
+		_camera.viewMatrix = XMMatrixMultiply( _camera.viewMatrix, XMMatrixRotationY(deltaX*(10 * timer.Delta())));
 
-		//_camera.viewMatrix.r[3].m128_f32[0] = tempPos.m128_f32[0];
-		//_camera.viewMatrix.r[3].m128_f32[0] = tempPos.m128_f32[1];
-		//_camera.viewMatrix.r[3].m128_f32[0] = tempPos.m128_f32[2];
+		_camera.viewMatrix.r[3].m128_f32[0] = tempPos.m128_f32[0];
+		_camera.viewMatrix.r[3].m128_f32[1] = tempPos.m128_f32[1];
+		_camera.viewMatrix.r[3].m128_f32[2] = tempPos.m128_f32[2];
 
+		//_camera.viewMatrix = XMMatrixInverse(0, _camera.viewMatrix);
 
 		currPos = tempMouse;
 
@@ -1103,20 +1123,21 @@ SCENE_TO_VRAM DEMO_APP::Movement(SCENE_TO_VRAM &_camera)
 	rotation.r[3].m128_f32[0] = DirectionalLight.directionalLightDirection.x;
 	rotation.r[3].m128_f32[1] = DirectionalLight.directionalLightDirection.y;
 	rotation.r[3].m128_f32[2] = DirectionalLight.directionalLightDirection.z;
-	rotation = XMMatrixMultiply(rotation, XMMatrixRotationX(XMConvertToRadians((float)timer.Delta() * 10)));
+	rotation = XMMatrixMultiply(rotation, XMMatrixRotationX(XMConvertToRadians((float)timer.Delta() * 20)));
 	DirectionalLight.directionalLightDirection.x = rotation.r[3].m128_f32[0];
 	DirectionalLight.directionalLightDirection.y = rotation.r[3].m128_f32[1];
 	DirectionalLight.directionalLightDirection.z = rotation.r[3].m128_f32[2];
 #pragma endregion
 
 	//// move the skybox to match the cameras postion so you can never get to the edge of the skybox
-	//skyBox.worldMatrix.r[3].m128_f32[0] = _camera.viewMatrix.r[3].m128_f32[0];
-	//skyBox.worldMatrix.r[3].m128_f32[1] = _camera.viewMatrix.r[3].m128_f32[1];
-	//skyBox.worldMatrix.r[3].m128_f32[2] = _camera.viewMatrix.r[3].m128_f32[2];
-	//skyBox.worldMatrix.r[3].m128_f32[3] = _camera.viewMatrix.r[3].m128_f32[3];
+	skyBox.worldMatrix.r[3].m128_f32[0] = _camera.viewMatrix.r[3].m128_f32[0];
+	skyBox.worldMatrix.r[3].m128_f32[1] = _camera.viewMatrix.r[3].m128_f32[1];
+	skyBox.worldMatrix.r[3].m128_f32[2] = _camera.viewMatrix.r[3].m128_f32[2];
+	skyBox.worldMatrix.r[3].m128_f32[3] = _camera.viewMatrix.r[3].m128_f32[3];
 
 	return _camera;
 }
+
 //************************************************************
 //************ DESTRUCTION ***********************************
 //************************************************************
@@ -1131,14 +1152,42 @@ bool DEMO_APP::ShutDown()
 	SAFE_RELEASE(device);
 	SAFE_RELEASE(context);
 	SAFE_RELEASE(rtv);
-	//SAFE_RELEASE(vertexBuffer);
 	SAFE_RELEASE(vertexShader);
 	SAFE_RELEASE(pixelShader);
 	SAFE_RELEASE(input);
 	SAFE_RELEASE(ConstObjectBuffer);
 	SAFE_RELEASE(ConstSceneBuffer);
-
-
+	SAFE_RELEASE(ConstantPointLightBuffer);
+	SAFE_RELEASE(ConstantDirectionalLightBuffer);
+	SAFE_RELEASE(ConstantSpotLightBuffer);
+	SAFE_RELEASE(LightShader);
+	SAFE_RELEASE(skyBoxPixelShader);
+	SAFE_RELEASE(skyBoxVertexShader);
+	SAFE_RELEASE(starInput);
+	SAFE_RELEASE(skyBoxInput);
+	SAFE_RELEASE(GunSRV);
+	SAFE_RELEASE(SRV);
+	SAFE_RELEASE(GroundSRV);
+	SAFE_RELEASE(deadPoolSRV);
+	//SAFE_RELEASE(sampleState);
+	SAFE_RELEASE(skyboxSRV);
+	SAFE_RELEASE(rasterizer1);
+	SAFE_RELEASE(rasterizer2);
+	SAFE_RELEASE(vertexStarBuffer);
+	SAFE_RELEASE(vertexMiniGunBuffer);
+	SAFE_RELEASE(vertexGroundBuffer);
+	SAFE_RELEASE(vertexDeadPoolBuffer);
+	SAFE_RELEASE(vertexSkyBoxBuffer);
+	SAFE_RELEASE(starIndexBuffer);
+	SAFE_RELEASE(MinigunIndexBuffer);
+	SAFE_RELEASE(groundIndexBuffer);
+	SAFE_RELEASE(deadPoolIndexBuffer);
+	SAFE_RELEASE(skyBoxIndexBuffer);
+	SAFE_RELEASE(depthStencil);
+	SAFE_RELEASE(depthStencilView);
+	SAFE_RELEASE(StarVertexShader);
+	SAFE_RELEASE(StarPIxelShader);
+	SAFE_RELEASE(texturesArray);
 
 	UnregisterClass( L"DirectXApplication", application ); 
 	return true;
