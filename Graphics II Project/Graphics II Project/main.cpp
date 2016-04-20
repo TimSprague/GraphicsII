@@ -695,7 +695,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	rasterizer1desc.CullMode = D3D11_CULL_BACK;
 	rasterizer1desc.FrontCounterClockwise = TRUE;
 	rasterizer1desc.DepthClipEnable = TRUE;
-	rasterizer1desc.MultisampleEnable = TRUE;
+	//rasterizer1desc.MultisampleEnable = TRUE;
 
 	device->CreateRasterizerState(&rasterizer1desc,&rasterizer1);
 
@@ -705,7 +705,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	rasterizer2desc.CullMode = D3D11_CULL_BACK;
 	rasterizer2desc.FrontCounterClockwise = false;
 	rasterizer2desc.DepthClipEnable = TRUE;
-	rasterizer2desc.MultisampleEnable = TRUE;
+	//rasterizer2desc.MultisampleEnable = TRUE;
 
 
 	device->CreateRasterizerState(&rasterizer2desc,&rasterizer2);
