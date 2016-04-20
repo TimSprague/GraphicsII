@@ -1,4 +1,4 @@
-#include "Header.hlsli"
+//#include "Header.hlsli"
 
 // from vertex shader to pixel shader, same order as the vertex shader
 struct INPUT_PIXEL
@@ -6,6 +6,8 @@ struct INPUT_PIXEL
 	float4 projectedCoordinate : SV_POSITION;
 	float3 uv : UV;
 	float3 normal : NORMAL;
+	float3 worldPosition : WORLD_POSITION;
+
 };
 
 texture2D baseTexture : register(t0); // first texture

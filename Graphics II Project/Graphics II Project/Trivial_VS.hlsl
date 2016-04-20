@@ -12,6 +12,7 @@ struct OUTPUT_VERTEX
 	float4 projectedCoordinate : SV_POSITION;
 	float3 uv : UV;
 	float3 normal : NORMAL;
+	float3 worldPosition : WORLD_POSITION;
 };
 
 cbuffer OBJECT : register(b0)
@@ -35,6 +36,9 @@ OUTPUT_VERTEX main( INPUT_VERTEX fromVertexBuffer )
 	float4 localPos = float4 (fromVertexBuffer.coordinate, 1);
 
 	localPos = mul(localPos, worldMatrix);
+	// append to the pixelshader for the world position of the object
+	sendToRasterizer.worldPosition = localPos.xyz;
+
 	localPos = mul(localPos, vewMatrix);
 	localPos = mul(localPos, projectionMatrix);
 	// TODO : PART 4 STEP 4
@@ -43,7 +47,9 @@ OUTPUT_VERTEX main( INPUT_VERTEX fromVertexBuffer )
 	// TODO : PART 3 STEP 7
 	sendToRasterizer.projectedCoordinate = localPos;
 	sendToRasterizer.uv = fromVertexBuffer.uv;
-	sendToRasterizer.normal = fromVertexBuffer.normal;
+	// the w must be a 0 so that it rotates the normals on the local position and not in the world
+	sendToRasterizer.normal = mul(float4(fromVertexBuffer.normal, 0), worldMatrix).xyz;
+	//sendToRasterizer.normal = fromVertexBuffer.normal;
 	// END PART 3
 
 	return sendToRasterizer;

@@ -37,18 +37,21 @@ bool Model::loadOBJ(const char *path, vector<float3> & out_verticies, vector<flo
 		{
 			float3 vertex;
 			fscanf_s(file, "%f %f %f\n", &vertex.x, &vertex.y, &vertex.z);
+			//vertex.x = -vertex.x;
 			temp_vertices.push_back(vertex);
 		}
 		else if (strcmp(lineHeader, "vt") == 0)
 		{
 			float3 uv;
 			fscanf_s(file, "%f %f\n", &uv.x, &uv.y);
+			uv.y = 1.0f - uv.y;
 			temp_uvs.push_back(uv);
 		}
 		else if (strcmp(lineHeader, "vn") == 0)
 		{
 			float3 normal;
 			fscanf_s(file, "%f %f %f\n", &normal.x, &normal.y, &normal.z);
+			//normal.x = -normal.x;
 			temp_normals.push_back(normal);
 		}
 		else if (strcmp(lineHeader, "f") == 0)

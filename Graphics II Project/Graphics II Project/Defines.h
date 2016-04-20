@@ -40,9 +40,6 @@ struct SIMPLE_VERTEX
 struct COMPLEX_VERTEX
 {
 	float3 pos;
-	float3 uv;
-	float3 normal;
-	float3 color;
 };
 
 struct SEND_TO_RAM
@@ -67,12 +64,16 @@ struct POINT_LIGHT
 	float4 pointLightPosition;
 	float4 pointLightColor;
 	float4 pointLightRadius;
+	XMMATRIX worldMatrix;
+
 };
 
 struct DIRECTIONAL_LIGHT
 {
 	float4 directionalLightDirection;
-	float4 directionalLightColr;
+	float4 directionalLightColor;
+	XMMATRIX worldMatrix;
+
 };
 
 struct SPOT_LIGHT
@@ -81,6 +82,8 @@ struct SPOT_LIGHT
 	float4 spotLightColor;
 	float4 spotLightConeDirection;
 	float4 spotLightConeRatio;
+	XMMATRIX worldMatrix;
+
 };
 
 
