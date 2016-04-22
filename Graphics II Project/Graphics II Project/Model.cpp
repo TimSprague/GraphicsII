@@ -10,7 +10,7 @@ Model::~Model()
 {
 }
 
-bool Model::loadOBJ(const char *path, vector<float3> & out_verticies, vector<float3> & out_uvs, vector<float3> & out_normals)
+void Model::loadOBJ(const char *path/*, vector<float3> & out_verticies, vector<float3> & out_uvs, vector<float3> & out_normals*/)
 {
 	vector<unsigned int> vertexIndices, uvIndices, normalIndices;
 	vector<float3> temp_vertices, temp_normals, temp_uvs;
@@ -20,7 +20,7 @@ bool Model::loadOBJ(const char *path, vector<float3> & out_verticies, vector<flo
 	if (file == nullptr)
 	{
 		cout << "Impossible to open file !/n";
-		return false;
+		return;
 	}
 
 	while (true)
@@ -44,7 +44,9 @@ bool Model::loadOBJ(const char *path, vector<float3> & out_verticies, vector<flo
 		{
 			float3 uv;
 			fscanf_s(file, "%f %f\n", &uv.x, &uv.y);
+			// changes from left hand system to right hand system
 			uv.y = 1.0f - uv.y;
+
 			temp_uvs.push_back(uv);
 		}
 		else if (strcmp(lineHeader, "vn") == 0)
@@ -78,19 +80,19 @@ bool Model::loadOBJ(const char *path, vector<float3> & out_verticies, vector<flo
 	{
 		unsigned int VertexIndex = vertexIndices[i];
 		float3 tempVertex = temp_vertices[VertexIndex - 1];
-		out_verticies.push_back(tempVertex);
+		//out_verticies.push_back(tempVertex);
 	}
 	for (unsigned int i = 0; i < uvIndices.size(); i++)
 	{
 		unsigned int uvIndex = uvIndices[i];
 		float3 tempUV = temp_uvs[uvIndex - 1];
-		out_uvs.push_back(tempUV);
+		//out_uvs.push_back(tempUV);
 	}
 	for (unsigned int i = 0; i < normalIndices.size(); i++)
 	{
 		unsigned int normalsIndex = normalIndices[i];
 		float3 tempNormal = temp_normals[normalsIndex - 1];
-		out_normals.push_back(tempNormal);
+		//out_normals.push_back(tempNormal);
 	}
 	vector<float3> tempUnique;
 	for (unsigned int i = 0; i < vertexIndices.size(); i++)

@@ -1,0 +1,40 @@
+newmtl dragon_hr-water
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 0.0
+map_Kd dragon_hr-water.png
+map_d dragon_hr-water.png
+
+newmtl dragon_hr-fire
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 0.0
+map_Kd dragon_hr-fire.png
+map_d dragon_hr-fire.png
+
+newmtl dragon_hr-wind
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 0.0
+map_Kd dragon_hr-wind.png
+map_d dragon_hr-wind.png
+
+newmtl dragon_hr-light
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 0.0
+map_Kd dragon_hr-light.png
+map_d dragon_hr-light.png
+
+newmtl dragon_hr-dark
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 0.0
+map_Kd dragon_hr-dark.png
+map_d dragon_hr-dark.png
+

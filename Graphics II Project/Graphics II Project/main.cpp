@@ -62,13 +62,13 @@ class DEMO_APP
 
 	// TODO: PART 2 STEP 2
 	
-	ID3D11Buffer *vertexStarBuffer, *vertexMiniGunBuffer, *vertexGroundBuffer, *vertexDeadPoolBuffer, *vertexSkyBoxBuffer;// pointer to hold the information in Vram
+	ID3D11Buffer *vertexStarBuffer, *vertexMiniGunBuffer, *vertexGroundBuffer, *vertexDeadPoolBuffer, *vertexSkyBoxBuffer, *vertexDragonBuffer, *vertexDragonKnightBuffer;// pointer to hold the information in Vram
 	unsigned int numVerts = 12;                      // number of verts in the circle
 	ID3D11Buffer *indexBuffer;                       // pointer to hold the points in order to draw
 	ID3D11Buffer *starIndexBuffer;                   // pointer to hold the points in order of the star
 	ID3D11Buffer *MinigunIndexBuffer;                // pointer to hold the points in order of the gun
 	ID3D11Buffer *groundIndexBuffer;                 // pointer to hold the points in order of the ground
-	ID3D11Buffer *deadPoolIndexBuffer, *skyBoxIndexBuffer;
+	ID3D11Buffer *deadPoolIndexBuffer, *skyBoxIndexBuffer, *dragonIndexBuffer, *dragonKnightIndexBuffer;
 	ID3D11Texture2D *depthStencil = NULL;            // pointer to the "depth buffer"
 	ID3D11DepthStencilView *depthStencilView;        // the depth stencil
 
@@ -97,13 +97,13 @@ class DEMO_APP
 	// TODO: PART 3 STEP 2b
 	
 
-	OBJECT_TO_VRAM star, miniGun, ground, Deadpool, skyBox;
+	OBJECT_TO_VRAM star, miniGun, ground, Deadpool, skyBox, dragon, dragonKnight;
 	SCENE_TO_VRAM camera;
 	POINT_LIGHT PointLight;
 	SPOT_LIGHT SpotLight;
 	DIRECTIONAL_LIGHT DirectionalLight;
 
-	Model miniGunModel, groundModel,deadpoolModel;
+	Model *miniGunModel, *groundModel,*deadpoolModel, *dragonModel, *dragonKnightModel;
 
 
 	// TODO: PART 3 STEP 4a
@@ -111,7 +111,7 @@ class DEMO_APP
 	ID3D11ShaderResourceView *SRV;      // for old header cube
 	ID3D11ShaderResourceView *GunSRV;   // shader for the gun texture
 	ID3D11ShaderResourceView *GroundSRV;
-	ID3D11ShaderResourceView *deadPoolSRV, *skyboxSRV;
+	ID3D11ShaderResourceView *deadPoolSRV, *skyboxSRV, *dragonSRV, *dragonKnightSRV;
 	ID3D11SamplerState *sampleState;     // pointer for the sample
 
 	ID3D11RasterizerState *rasterizer1, *rasterizer2;
@@ -123,6 +123,9 @@ class DEMO_APP
 
 	float Yscale = (1 / tanf((.5f*FOV)*(PI/180.0f))), zFar = FarPlane, zNear = NearPlane;
 	float Xscale = (Yscale*AspectRatio);
+
+	void ThreadedLoading(Model* model, const char *path);
+
 public:
 	// BEGIN PART 2
 	// TODO: PART 2 STEP 1
@@ -174,7 +177,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	chain.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	chain.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	chain.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-	chain.SampleDesc.Count = 1;
+	chain.SampleDesc.Count = 4;
 	chain.OutputWindow = window;
 	chain.Windowed = true;
 
@@ -206,6 +209,41 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	viewport.MaxDepth = 1;
 	viewport.MinDepth = 0;
 	context->RSSetViewports(1, &viewport);
+
+#pragma region model loading
+
+	miniGunModel = new Model();
+	deadpoolModel = new Model();
+	groundModel = new Model();
+	dragonModel = new Model();
+	dragonKnightModel = new Model();
+	//14967             14967             14967
+	//thread thread1(miniGunModel.loadOBJ, this, "../Graphics II Project/sbv9148irj-Deadpool/Deadpool/DP GUN 1.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
+	//miniGunModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/crate.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
+	thread thread1(&DEMO_APP::ThreadedLoading, this, miniGunModel, "../Graphics II Project/sbv9148irj-Deadpool/Deadpool/DP GUN 1.obj");
+	thread thread2(&DEMO_APP::ThreadedLoading, this, deadpoolModel, "../Graphics II Project/sbv9148irj-Deadpool/Deadpool/deadpool sword 1.obj");
+	thread thread3(&DEMO_APP::ThreadedLoading, this, groundModel, "../Graphics II Project/sbv9148irj-Deadpool/Deadpool/Ground.obj");
+	thread thread4(&DEMO_APP::ThreadedLoading, this, dragonModel, "../Graphics II Project/Mobile - Summoners War - DragonA/dragon_hr-light.obj");
+	thread thread5(&DEMO_APP::ThreadedLoading, this, dragonKnightModel, "../Graphics II Project/Mobile - Summoners War - Dragon KnightA/dragonknight_hr-dark.obj");
+	
+
+	//thread thread2(deadpoolModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/deadpool sword 1.obj", deadpoolModel.pos, deadpoolModel.uv, deadpoolModel.normal), this);
+
+	//thread thread3(groundModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/Ground.obj", groundModel.pos, groundModel.uv, groundModel.normal));
+
+	//thread thread4(dragonModel.loadOBJ("../Graphics II Project/Dragon/dragon1.obj", dragonModel.pos, dragonModel.uv, dragonModel.normal));
+
+	//(miniGunModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/DP GUN 1.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal));
+	////miniGunModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/crate.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
+
+	//(deadpoolModel->loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/deadpool sword 1.obj"/*, deadpoolModel.pos, deadpoolModel.uv, deadpoolModel.normal*/));
+
+	//(groundModel->loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/Ground.obj"/*, groundModel.pos, groundModel.uv, groundModel.normal*/));
+
+	//(dragonModel->loadOBJ("../Graphics II Project/Dragon/dragon2.obj"/*, dragonModel.pos, dragonModel.uv, dragonModel.normal*/));
+
+	// make second viewport
+#pragma endregion
 
 	// TODO: PART 4 STEP 1
 #pragma region triangleStuff
@@ -285,19 +323,12 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	{0,1,6, 0,6,5, 1,2,3, 1,3,6, 5,6,3, 5,3,4, 0,5,4, 0,4,7, 1,0,7, 1,7,2, 4,3,2, 4,2,7};
 	
 #pragma endregion
-
-#pragma region model loading
-
-	//14967             14967             14967
-	miniGunModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/DP GUN 1.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
-	//miniGunModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/crate.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
-
-	deadpoolModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/deadpool sword 1.obj", deadpoolModel.pos, deadpoolModel.uv, deadpoolModel.normal);
-
-	groundModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/Ground.obj", groundModel.pos, groundModel.uv, groundModel.normal);
-	//miniGunModel.loadOBJ("../Graphics II Project/Dragon/dragon1.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
-
-#pragma endregion
+	
+	thread1.join();
+	thread2.join();
+	thread3.join();
+	thread4.join();
+	thread5.join();
 
 #pragma region VertexBuffers
 
@@ -318,7 +349,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	gunBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	gunBufferDesc.CPUAccessFlags = NULL;
 	// total size of the buffer
-	gunBufferDesc.ByteWidth = sizeof(Model::vertex_Normal) * (UINT)miniGunModel.uniqueVerts.size();
+	gunBufferDesc.ByteWidth = sizeof(Model::vertex_Normal) * (UINT)miniGunModel->uniqueVerts.size();
 	gunBufferDesc.MiscFlags = NULL;
 	//gunBufferDesc.StructureByteStride = sizeof(Model);
 
@@ -328,7 +359,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	groundBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	groundBufferDesc.CPUAccessFlags = NULL;
 	// total size of the buffer
-	groundBufferDesc.ByteWidth = sizeof(Model::vertex_Normal) * (UINT)groundModel.uniqueVerts.size();
+	groundBufferDesc.ByteWidth = sizeof(Model::vertex_Normal) * (UINT)groundModel->uniqueVerts.size();
 	groundBufferDesc.MiscFlags = NULL;
 	//groundBufferDesc.StructureByteStride = sizeof(OBJ_VERT);
 
@@ -338,7 +369,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	deadPoolBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	deadPoolBufferDesc.CPUAccessFlags = NULL;
 	// total size of the buffer
-	deadPoolBufferDesc.ByteWidth = sizeof(Model::vertex_Normal) * (UINT)deadpoolModel.uniqueVerts.size();
+	deadPoolBufferDesc.ByteWidth = sizeof(Model::vertex_Normal) * (UINT)deadpoolModel->uniqueVerts.size();
 	deadPoolBufferDesc.MiscFlags = NULL;
 
 	D3D11_BUFFER_DESC skyboxBufferDesc;
@@ -348,6 +379,22 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	skyboxBufferDesc.CPUAccessFlags = NULL;
 	skyboxBufferDesc.ByteWidth = sizeof(COMPLEX_VERTEX) * 8;
 	skyboxBufferDesc.MiscFlags = NULL;
+
+	D3D11_BUFFER_DESC dragonBufferDesc;
+	ZeroMemory(&dragonBufferDesc, sizeof(D3D11_BUFFER_DESC));
+	dragonBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	dragonBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	dragonBufferDesc.CPUAccessFlags = NULL;
+	dragonBufferDesc.ByteWidth = sizeof(Model::vertex_Normal) * (UINT)dragonModel->uniqueVerts.size();
+	dragonBufferDesc.MiscFlags = NULL;
+
+	D3D11_BUFFER_DESC dragonKnightBufferDesc;
+	ZeroMemory(&dragonKnightBufferDesc, sizeof(D3D11_BUFFER_DESC));
+	dragonKnightBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	dragonKnightBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	dragonKnightBufferDesc.CPUAccessFlags = NULL;
+	dragonKnightBufferDesc.ByteWidth = sizeof(Model::vertex_Normal) * (UINT)dragonKnightModel->uniqueVerts.size();
+	dragonKnightBufferDesc.MiscFlags = NULL;
 
 #pragma endregion
 
@@ -368,7 +415,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	gunIndexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	gunIndexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	gunIndexBufferDesc.CPUAccessFlags = NULL;
-	gunIndexBufferDesc.ByteWidth = sizeof(UINT) *(UINT)miniGunModel.uniqueIndexBuffer.size();
+	gunIndexBufferDesc.ByteWidth = sizeof(UINT) *(UINT)miniGunModel->uniqueIndexBuffer.size();
 	gunIndexBufferDesc.MiscFlags = NULL;
 	gunIndexBufferDesc.StructureByteStride = sizeof(UINT);
 
@@ -378,7 +425,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	groundIndexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	groundIndexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	groundIndexBufferDesc.CPUAccessFlags = NULL;
-	groundIndexBufferDesc.ByteWidth = sizeof(UINT) * (UINT)groundModel.uniqueIndexBuffer.size();
+	groundIndexBufferDesc.ByteWidth = sizeof(UINT) * (UINT)groundModel->uniqueIndexBuffer.size();
 	groundIndexBufferDesc.MiscFlags = NULL;
 	groundIndexBufferDesc.StructureByteStride = sizeof(const unsigned int);
 
@@ -388,7 +435,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	deadPoolIndexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	deadPoolIndexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	deadPoolIndexBufferDesc.CPUAccessFlags = NULL;
-	deadPoolIndexBufferDesc.ByteWidth = sizeof(UINT) * (UINT)deadpoolModel.uniqueIndexBuffer.size();
+	deadPoolIndexBufferDesc.ByteWidth = sizeof(UINT) * (UINT)deadpoolModel->uniqueIndexBuffer.size();
 	deadPoolIndexBufferDesc.MiscFlags = NULL;
 	deadPoolIndexBufferDesc.StructureByteStride = sizeof(const unsigned int);
 
@@ -400,6 +447,26 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	skyboxIndexBufferDesc.ByteWidth = sizeof(UINT) * 36;
 	skyboxIndexBufferDesc.MiscFlags = NULL;
 	skyboxIndexBufferDesc.StructureByteStride = sizeof(UINT);
+
+	D3D11_BUFFER_DESC dragonIndexBufferDesc;
+	ZeroMemory(&dragonIndexBufferDesc, sizeof(D3D11_BUFFER_DESC));
+	dragonIndexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	dragonIndexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	dragonIndexBufferDesc.CPUAccessFlags = NULL;
+	dragonIndexBufferDesc.ByteWidth = sizeof(UINT) * (UINT)dragonModel->uniqueIndexBuffer.size();
+	dragonIndexBufferDesc.MiscFlags = NULL;
+	dragonIndexBufferDesc.StructureByteStride = sizeof(UINT);
+
+	D3D11_BUFFER_DESC dragonKnightIndexBufferDesc;
+	ZeroMemory(&dragonKnightIndexBufferDesc, sizeof(D3D11_BUFFER_DESC));
+	dragonKnightIndexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	dragonKnightIndexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	dragonKnightIndexBufferDesc.CPUAccessFlags = NULL;
+	dragonKnightIndexBufferDesc.ByteWidth = sizeof(UINT) * (UINT)dragonKnightModel->uniqueIndexBuffer.size();
+	dragonKnightIndexBufferDesc.MiscFlags = NULL;
+	dragonKnightIndexBufferDesc.StructureByteStride = sizeof(UINT);
+
+
 #pragma endregion
 
 #pragma region Textures
@@ -409,7 +476,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	descDepth.MipLevels = 1;
 	descDepth.ArraySize = 1;
 	descDepth.Format = DXGI_FORMAT_D32_FLOAT;
-	descDepth.SampleDesc.Count = 1;
+	descDepth.SampleDesc.Count = 4;
 	descDepth.SampleDesc.Quality = 0;
 	descDepth.Usage = D3D11_USAGE_DEFAULT;
 	descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
@@ -432,15 +499,16 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
 	//ZeroMemory(&descDSV, sizeof(descDSV));
 	descDSV.Format = DXGI_FORMAT_D32_FLOAT;
-	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
 	descDSV.Texture2D.MipSlice = 0;
 
-	//D3D11_SAMPLER_DESC sampleDesc = {};
-	//sampleDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-	//sampleDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-	//sampleDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-	//sampleDesc.ComparisonFunc = D3D11_COMPARISON_GREATER;
-	//sampleDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	D3D11_SAMPLER_DESC sampleDesc = {};
+	ZeroMemory(&sampleDesc, sizeof(D3D11_SAMPLER_DESC));
+	sampleDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	sampleDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	sampleDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	sampleDesc.ComparisonFunc = D3D11_COMPARISON_GREATER;
+	sampleDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
 #pragma endregion
 
@@ -457,32 +525,32 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	triangleindexData.SysMemSlicePitch = 0;
 
 	D3D11_SUBRESOURCE_DATA subMiniGunData = {};
-	subMiniGunData.pSysMem = miniGunModel.uniqueVerts.data();
+	subMiniGunData.pSysMem = miniGunModel->uniqueVerts.data();
 	subMiniGunData.SysMemPitch = 0;
 	subMiniGunData.SysMemSlicePitch = 0;
 
 	D3D11_SUBRESOURCE_DATA minigunIndexData = {};
-	minigunIndexData.pSysMem = miniGunModel.uniqueIndexBuffer.data();
+	minigunIndexData.pSysMem = miniGunModel->uniqueIndexBuffer.data();
 	minigunIndexData.SysMemPitch = 0;
 	minigunIndexData.SysMemSlicePitch = 0;
 
 	D3D11_SUBRESOURCE_DATA groundSubData = {};
-	groundSubData.pSysMem = groundModel.uniqueVerts.data();
+	groundSubData.pSysMem = groundModel->uniqueVerts.data();
 	groundSubData.SysMemPitch = 0;
 	groundSubData.SysMemSlicePitch = 0;
 
 	D3D11_SUBRESOURCE_DATA groundIndexData;
-	groundIndexData.pSysMem = groundModel.uniqueIndexBuffer.data();
+	groundIndexData.pSysMem = groundModel->uniqueIndexBuffer.data();
 	groundIndexData.SysMemPitch = 0;
 	groundIndexData.SysMemSlicePitch = 0;
 
 	D3D11_SUBRESOURCE_DATA deadPoolData = {};
-	deadPoolData.pSysMem = deadpoolModel.uniqueVerts.data();
+	deadPoolData.pSysMem = deadpoolModel->uniqueVerts.data();
 	deadPoolData.SysMemPitch = 0;
 	deadPoolData.SysMemSlicePitch = 0;
 
 	D3D11_SUBRESOURCE_DATA deadPoolIndexData = {};
-	deadPoolIndexData.pSysMem = deadpoolModel.uniqueIndexBuffer.data();
+	deadPoolIndexData.pSysMem = deadpoolModel->uniqueIndexBuffer.data();
 	deadPoolIndexData.SysMemPitch = 0;
 	deadPoolIndexData.SysMemSlicePitch = 0;
 
@@ -495,6 +563,26 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	skyboxIndexData.pSysMem = SkyBoxindexOrder;
 	skyboxIndexData.SysMemPitch = 0;
 	skyboxIndexData.SysMemSlicePitch = 0;
+
+	D3D11_SUBRESOURCE_DATA subDragonData = {};
+	subDragonData.pSysMem = dragonModel->uniqueVerts.data();
+	subDragonData.SysMemPitch = 0;
+	subDragonData.SysMemSlicePitch = 0;
+
+	D3D11_SUBRESOURCE_DATA subDragonIndexData = {};
+	subDragonIndexData.pSysMem = dragonModel->uniqueIndexBuffer.data();
+	subDragonIndexData.SysMemPitch = 0;
+	subDragonIndexData.SysMemSlicePitch = 0;
+
+	D3D11_SUBRESOURCE_DATA subDragonKnightData = {};
+	subDragonKnightData.pSysMem = dragonKnightModel->uniqueVerts.data();
+	subDragonKnightData.SysMemPitch = 0;
+	subDragonKnightData.SysMemSlicePitch = 0;
+
+	D3D11_SUBRESOURCE_DATA subDragonKnightIndexData = {};
+	subDragonKnightIndexData.pSysMem = dragonKnightModel->uniqueIndexBuffer.data();
+	subDragonKnightIndexData.SysMemPitch = 0;
+	subDragonKnightIndexData.SysMemSlicePitch = 0;
 
 	D3D11_SUBRESOURCE_DATA subTextureData[faceDiff_numlevels] = {};
 	for (int i = 0; i < faceDiff_numlevels; i++)
@@ -524,6 +612,12 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	device->CreateBuffer(&skyboxBufferDesc, &subSkyboxData, &vertexSkyBoxBuffer);
 	device->CreateBuffer(&skyboxIndexBufferDesc, &skyboxIndexData, &skyBoxIndexBuffer);
 
+	device->CreateBuffer(&dragonBufferDesc, &subDragonData, &vertexDragonBuffer);
+	device->CreateBuffer(&dragonIndexBufferDesc, &subDragonIndexData, &dragonIndexBuffer);
+
+	device->CreateBuffer(&dragonKnightBufferDesc, &subDragonKnightData, &vertexDragonKnightBuffer);
+	device->CreateBuffer(&dragonKnightIndexBufferDesc, &subDragonKnightIndexData, &dragonKnightIndexBuffer);
+
 	device->CreateTexture2D(&descDepth, NULL, &depthStencil);
 	device->CreateDepthStencilView(depthStencil, &descDSV, &depthStencilView);
 	device->CreateTexture2D(&textureDesc, subTextureData, &texturesArray);
@@ -534,6 +628,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	CreateDDSTextureFromFile(device, L"Seamless tileable ice snow cracks ground texture.dds", NULL, &GroundSRV);
 	CreateDDSTextureFromFile(device, L"../Graphics II Project/sbv9148irj-Deadpool/Deadpool/DPROP_DeadpoolSword_TEXSET_Color_NormX.dds", NULL, &deadPoolSRV);
 	CreateDDSTextureFromFile(device, L"SunsetSkybox.dds", NULL, &skyboxSRV);
+	CreateDDSTextureFromFile(device, L"../Graphics II Project/Mobile - Summoners War - DragonA/dragon_hr-light.dds", NULL, &dragonSRV);
+	CreateDDSTextureFromFile(device, L"../Graphics II Project/Mobile - Summoners War - Dragon KnightA/dragonknight_hr-dark.dds", NULL, &dragonKnightSRV);
 
 	device->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), nullptr, &vertexShader);
 	device->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), nullptr, &pixelShader);
@@ -642,18 +738,16 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	// scaling from the identity down to .05 to make it smaller
 	miniGun.worldMatrix = XMMatrixScaling(.05f, .05f, .05f);
 	// set the position of xyz 
-	miniGun.worldMatrix.r[3].m128_f32[0] = 0;
+	miniGun.worldMatrix.r[3].m128_f32[0] = 8;
 	miniGun.worldMatrix.r[3].m128_f32[1] = 0;
-	miniGun.worldMatrix.r[3].m128_f32[2] = 0;
+	miniGun.worldMatrix.r[3].m128_f32[2] = -3;
 
 	camera.projectionMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(65), AspectRatio, zNear, zFar);
 	camera.viewMatrix = XMMatrixInverse(NULL, XMMatrixIdentity());
-	//miniGun.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(XMConvertToRadians(90)), miniGun.worldMatrix);
-	//miniGun.worldMatrix = XMMatrixMultiply(XMMatrixRotationX(XMConvertToRadians(270)), miniGun.worldMatrix);
 
 	Deadpool.worldMatrix = XMMatrixIdentity();
 	Deadpool.worldMatrix = XMMatrixScaling(0.05f, 0.05f, 0.05f);
-	Deadpool.worldMatrix.r[3].m128_f32[0] = 4;
+	Deadpool.worldMatrix.r[3].m128_f32[0] = 8;
 	Deadpool.worldMatrix.r[3].m128_f32[1] = 0;
 	Deadpool.worldMatrix.r[3].m128_f32[2] = 0;
 
@@ -686,6 +780,18 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	skyBox.worldMatrix = XMMatrixIdentity();
 	skyBox.worldMatrix = XMMatrixTranslation(0, 0, 0);
 
+	dragon.worldMatrix = XMMatrixIdentity();
+	dragon.worldMatrix = XMMatrixScaling(0.05f, 0.05f, 0.05f);
+	dragon.worldMatrix.r[3].m128_f32[0] = 0;
+	dragon.worldMatrix.r[3].m128_f32[1] = 0;
+	dragon.worldMatrix.r[3].m128_f32[2] = 10;
+
+	dragonKnight.worldMatrix = XMMatrixIdentity();
+	dragonKnight.worldMatrix = XMMatrixScaling(0.05f, 0.05f, 0.05f);
+	dragonKnight.worldMatrix.r[3].m128_f32[0] = 0;
+	dragonKnight.worldMatrix.r[3].m128_f32[1] = 0;
+	dragonKnight.worldMatrix.r[3].m128_f32[2] = 1;
+
 
 #pragma endregion
 
@@ -695,22 +801,22 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	rasterizer1desc.CullMode = D3D11_CULL_BACK;
 	rasterizer1desc.FrontCounterClockwise = TRUE;
 	rasterizer1desc.DepthClipEnable = TRUE;
-	//rasterizer1desc.MultisampleEnable = TRUE;
+	rasterizer1desc.MultisampleEnable = TRUE;
 
 	device->CreateRasterizerState(&rasterizer1desc,&rasterizer1);
 
 	D3D11_RASTERIZER_DESC rasterizer2desc;
 	ZeroMemory(&rasterizer2desc, sizeof(D3D11_RASTERIZER_DESC));
 	rasterizer2desc.FillMode = D3D11_FILL_SOLID;
-	rasterizer2desc.CullMode = D3D11_CULL_BACK;
+	rasterizer2desc.CullMode = D3D11_CULL_NONE;
 	rasterizer2desc.FrontCounterClockwise = false;
 	rasterizer2desc.DepthClipEnable = TRUE;
-	//rasterizer2desc.MultisampleEnable = TRUE;
+	rasterizer2desc.MultisampleEnable = TRUE;
 
 
 	device->CreateRasterizerState(&rasterizer2desc,&rasterizer2);
 
-	//device->CreateSamplerState(&sampleDesc,&sampleState);
+	device->CreateSamplerState(&sampleDesc,&sampleState);
 
 }
 
@@ -783,7 +889,7 @@ bool DEMO_APP::Run()
 	context->VSSetShader(vertexShader, NULL, 0);
 	context->PSSetShader(pixelShader, NULL, 0);
 	//context->PSSetShaderResources(0, 1, &SRV);
-	//context->PSSetSamplers(0, 1, &sampleState);
+	context->PSSetSamplers(0, 1, &sampleState);
 	
 	// TODO: PART 2 STEP 9c
 	
@@ -828,7 +934,7 @@ bool DEMO_APP::Run()
 	context->PSSetShaderResources(0, 1, &GroundSRV);
 	context->VSSetShader(vertexShader, NULL, 0);
 	context->PSSetShader(LightShader, NULL, 0);
-	context->DrawIndexed(groundModel.uniqueIndexBuffer.size(), 0, 0);
+	context->DrawIndexed(groundModel->uniqueIndexBuffer.size(), 0, 0);
 
 
 	D3D11_MAPPED_SUBRESOURCE triMap;
@@ -861,7 +967,7 @@ bool DEMO_APP::Run()
 	context->PSSetShaderResources(0, 1, &GunSRV);
 	context->VSSetShader(vertexShader, NULL, 0);
 	context->PSSetShader(LightShader, NULL, 0);
-	context->DrawIndexed(miniGunModel.uniqueIndexBuffer.size(), 0, 0);
+	context->DrawIndexed(miniGunModel->uniqueIndexBuffer.size(), 0, 0);
 
 	D3D11_MAPPED_SUBRESOURCE DeadPoolMap;
 	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DeadPoolMap);
@@ -876,7 +982,37 @@ bool DEMO_APP::Run()
 	context->PSSetShaderResources(0, 1, &deadPoolSRV);
 	context->VSSetShader(vertexShader, NULL, 0);
 	context->PSSetShader(LightShader, NULL, 0);
-	context->DrawIndexed(deadpoolModel.uniqueIndexBuffer.size(), 0, 0);
+	context->DrawIndexed(deadpoolModel->uniqueIndexBuffer.size(), 0, 0);
+
+	D3D11_MAPPED_SUBRESOURCE DragonMap;
+	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DragonMap);
+	memcpy(DragonMap.pData, &dragon, sizeof(OBJECT_TO_VRAM));
+	context->Unmap(ConstObjectBuffer, 0);
+
+	UINT dragonStride = sizeof(Model::vertex_Normal);
+	UINT dragonOffset = 0;
+	context->IASetVertexBuffers(0, 1, &vertexDragonBuffer, &dragonStride, &dragonOffset);
+	context->IASetIndexBuffer(dragonIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	context->IASetInputLayout(input);
+	context->PSSetShaderResources(0, 1, &dragonSRV);
+	context->VSSetShader(vertexShader, NULL, 0);
+	context->PSSetShader(LightShader, NULL, 0);
+	context->DrawIndexed(dragonModel->uniqueIndexBuffer.size(), 0, 0);
+
+	D3D11_MAPPED_SUBRESOURCE DragonKnightMap;
+	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DragonKnightMap);
+	memcpy(DragonKnightMap.pData, &dragonKnight, sizeof(OBJECT_TO_VRAM));
+	context->Unmap(ConstObjectBuffer, 0);
+
+	UINT dragonKnightStride = sizeof(Model::vertex_Normal);
+	UINT dragonKnightOffset = 0;
+	context->IASetVertexBuffers(0, 1, &vertexDragonKnightBuffer, &dragonKnightStride, &dragonKnightOffset);
+	context->IASetIndexBuffer(dragonKnightIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	context->IASetInputLayout(input);
+	context->PSSetShaderResources(0, 1, &dragonKnightSRV);
+	context->VSSetShader(vertexShader, NULL, 0);
+	context->PSSetShader(LightShader, NULL, 0);
+	context->DrawIndexed(dragonKnightModel->uniqueIndexBuffer.size(), 0, 0);
 	// END PART 2
 
 	D3D11_MAPPED_SUBRESOURCE DirectionalLightMap;
@@ -1006,7 +1142,7 @@ SCENE_TO_VRAM DEMO_APP::Movement(SCENE_TO_VRAM &_camera)
 		currPos = tempMouse;
 
 	}
-
+	
 #pragma region pointlight movement
 	// moving the point light
 	if (GetAsyncKeyState(VK_LEFT))
@@ -1138,6 +1274,12 @@ SCENE_TO_VRAM DEMO_APP::Movement(SCENE_TO_VRAM &_camera)
 	return _camera;
 }
 
+void DEMO_APP::ThreadedLoading(Model* model, const char *path)
+{
+	model->loadOBJ(path);
+}
+
+
 //************************************************************
 //************ DESTRUCTION ***********************************
 //************************************************************
@@ -1169,7 +1311,7 @@ bool DEMO_APP::ShutDown()
 	SAFE_RELEASE(SRV);
 	SAFE_RELEASE(GroundSRV);
 	SAFE_RELEASE(deadPoolSRV);
-	//SAFE_RELEASE(sampleState);
+	SAFE_RELEASE(sampleState);
 	SAFE_RELEASE(skyboxSRV);
 	SAFE_RELEASE(rasterizer1);
 	SAFE_RELEASE(rasterizer2);
@@ -1188,7 +1330,18 @@ bool DEMO_APP::ShutDown()
 	SAFE_RELEASE(StarVertexShader);
 	SAFE_RELEASE(StarPIxelShader);
 	SAFE_RELEASE(texturesArray);
+	SAFE_RELEASE(dragonIndexBuffer);
+	SAFE_RELEASE(dragonSRV);
+	SAFE_RELEASE(vertexDragonBuffer);
+	SAFE_RELEASE(vertexDragonKnightBuffer);
+	SAFE_RELEASE(dragonKnightIndexBuffer);
+	SAFE_RELEASE(dragonKnightSRV);
 
+	delete miniGunModel;
+	delete groundModel;
+	delete deadpoolModel;
+	delete dragonModel;
+	delete dragonKnightModel;
 	UnregisterClass( L"DirectXApplication", application ); 
 	return true;
 }

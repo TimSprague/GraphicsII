@@ -288,7 +288,6 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Header.hlsli" />
     <None Include="Lighting.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

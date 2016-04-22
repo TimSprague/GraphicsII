@@ -23,6 +23,6 @@ public:
 	~Model();
 
 
-	bool loadOBJ(const char *path, vector<float3> & out_verticies, vector<float3> & out_uvs, vector<float3> & out_normals);
+	void loadOBJ(const char *path/*, vector<float3> & out_verticies, vector<float3> & out_uvs, vector<float3> & out_normals*/);
 };
 

@@ -10,6 +10,7 @@
 #include <vector>
 #include "SharedDefines.h"
 #include "DDSTextureLoader.h"
+#include <thread>
 using namespace DirectX;
 using namespace std;
 

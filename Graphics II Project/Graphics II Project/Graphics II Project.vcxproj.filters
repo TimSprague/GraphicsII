@@ -65,6 +65,5 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Lighting.hlsli" />
-    <None Include="Header.hlsli" />
   </ItemGroup>
 </Project>
