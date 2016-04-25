@@ -15,8 +15,8 @@ using namespace DirectX;
 using namespace std;
 
 
-#define RASTER_HEIGHT 500
-#define RASTER_WIDTH 500
+#define RASTER_HEIGHT 850
+#define RASTER_WIDTH 1000
 #define PI 3.14159f
 #define FOV 65
 #define AspectRatio ((float)RASTER_WIDTH/RASTER_HEIGHT)

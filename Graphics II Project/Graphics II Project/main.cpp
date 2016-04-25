@@ -27,12 +27,13 @@
 #include "Lights.csh"
 #include "SkyBoxPixelShader_PS.csh"
 #include "SkyBoxVertexShader_VS.csh"
+#include "InstanceShader.csh"
 
 
 
 
-#define BACKBUFFER_WIDTH	500
-#define BACKBUFFER_HEIGHT	500
+#define BACKBUFFER_HEIGHT	850
+#define BACKBUFFER_WIDTH	1000
 
 
 //name of the matrix, row 3, 128bit array of floats finding float32, at 0
@@ -52,9 +53,9 @@ class DEMO_APP
 	
 	ID3D11Device *device = {};                        // pointer to the direct3d device interfave
 	ID3D11DeviceContext *context = {};                // pointer to our direct3d device context
-	ID3D11RenderTargetView *rtv = {};                 // pointer to the direct3d renderTargetView
+	ID3D11RenderTargetView *rtv,*rtv2 = {};                 // pointer to the direct3d renderTargetView
 	IDXGISwapChain *swapchain = {};                   // pointer to the swap chain interface
-	D3D11_VIEWPORT viewport;
+	D3D11_VIEWPORT viewport, viewport2;
 	ID3D11InputLayout *input = {};                    // pointer to the direct3d input
 	ID3D11InputLayout *starInput = {};                // pointer to the direct3d input for the star
 	ID3D11InputLayout *skyBoxInput = {};              // pointer to the input for the skybox
@@ -81,6 +82,7 @@ class DEMO_APP
 	ID3D11PixelShader *LightShader;
 	ID3D11PixelShader *skyBoxPixelShader;
 	ID3D11VertexShader *skyBoxVertexShader;
+	ID3D11VertexShader *InstanceVertexShader;
 
 	// BEGIN PART 3
 	// TODO: PART 3 STEP 1
@@ -91,6 +93,9 @@ class DEMO_APP
 	ID3D11Buffer *ConstantDirectionalLightBuffer;
 	ID3D11Buffer *ConstantSpotLightBuffer;
 
+	XMMATRIX instanes[3];
+	ID3D11Buffer *InstanceConstanceBuffer;
+
 	//ID3D11Buffer *ConstModelBuffer;
 	
 	XTime timer;
@@ -98,7 +103,7 @@ class DEMO_APP
 	
 
 	OBJECT_TO_VRAM star, miniGun, ground, Deadpool, skyBox, dragon, dragonKnight;
-	SCENE_TO_VRAM camera;
+	SCENE_TO_VRAM camera, camera2;
 	POINT_LIGHT PointLight;
 	SPOT_LIGHT SpotLight;
 	DIRECTIONAL_LIGHT DirectionalLight;
@@ -142,6 +147,25 @@ public:
 
 DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 {
+
+#pragma region model loading
+
+	miniGunModel = new Model();
+	deadpoolModel = new Model();
+	groundModel = new Model();
+	dragonModel = new Model();
+	dragonKnightModel = new Model();
+	//14967             14967             14967
+	//thread thread1(miniGunModel.loadOBJ, this, "../Graphics II Project/sbv9148irj-Deadpool/Deadpool/DP GUN 1.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
+	//miniGunModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/crate.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
+	//thread thread1(&DEMO_APP::ThreadedLoading, this, miniGunModel, "../Graphics II Project/sbv9148irj-Deadpool/Deadpool/DP GUN 1.obj");
+	thread thread2(&DEMO_APP::ThreadedLoading, this, deadpoolModel, "../Graphics II Project/sbv9148irj-Deadpool/Deadpool/deadpool sword 1.obj");
+	thread thread3(&DEMO_APP::ThreadedLoading, this, groundModel, "../Graphics II Project/sbv9148irj-Deadpool/Deadpool/Ground.obj");
+	thread thread4(&DEMO_APP::ThreadedLoading, this, dragonModel, "../Graphics II Project/Mobile - Summoners War - DragonA/dragon_hr-light.obj");
+	thread thread5(&DEMO_APP::ThreadedLoading, this, dragonKnightModel, "../Graphics II Project/Mobile - Summoners War - Dragon KnightA/dragonknight_hr-dark.obj");
+
+#pragma endregion
+
 	// ****************** BEGIN WARNING ***********************// 
 	// WINDOWS CODE, I DON'T TEACH THIS YOU MUST KNOW IT ALREADY! 
 	application = hinst;
@@ -190,6 +214,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	// create the imagebackbuffer that will store the image to be printed
 	ID3D11Texture2D * imageBackBuffer;
 
+
 	// get the back bufer on the swap chain and create the texture object stored in the pBackBuffer
 	// (layer of back buffer (first in the chain), uniqueid for the com object, void* points to the location of the image object)
 	swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&imageBackBuffer);
@@ -197,6 +222,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	// using teh imagebuffers address to create the render target
 	// (pointer to the image/object, struct that describes the render target (backbuffer doesn't need this so null works), address of the backbuffer to be used)
 	device->CreateRenderTargetView(imageBackBuffer, NULL, &rtv);
+	device->CreateRenderTargetView(imageBackBuffer, NULL, &rtv2);
 	// must release the image buffer to release threads used by the COM object
 	imageBackBuffer->Release();
 
@@ -204,46 +230,24 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	// zero out the struct for viewport
 	ZeroMemory(&viewport, sizeof(D3D11_VIEWPORT));
 
-	viewport.Width = BACKBUFFER_WIDTH;
+	viewport.Width = BACKBUFFER_WIDTH*0.5f;
 	viewport.Height = BACKBUFFER_HEIGHT;
 	viewport.MaxDepth = 1;
 	viewport.MinDepth = 0;
+
+
 	context->RSSetViewports(1, &viewport);
 
-#pragma region model loading
+	ZeroMemory(&viewport2, sizeof(D3D11_VIEWPORT));
 
-	miniGunModel = new Model();
-	deadpoolModel = new Model();
-	groundModel = new Model();
-	dragonModel = new Model();
-	dragonKnightModel = new Model();
-	//14967             14967             14967
-	//thread thread1(miniGunModel.loadOBJ, this, "../Graphics II Project/sbv9148irj-Deadpool/Deadpool/DP GUN 1.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
-	//miniGunModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/crate.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
-	thread thread1(&DEMO_APP::ThreadedLoading, this, miniGunModel, "../Graphics II Project/sbv9148irj-Deadpool/Deadpool/DP GUN 1.obj");
-	thread thread2(&DEMO_APP::ThreadedLoading, this, deadpoolModel, "../Graphics II Project/sbv9148irj-Deadpool/Deadpool/deadpool sword 1.obj");
-	thread thread3(&DEMO_APP::ThreadedLoading, this, groundModel, "../Graphics II Project/sbv9148irj-Deadpool/Deadpool/Ground.obj");
-	thread thread4(&DEMO_APP::ThreadedLoading, this, dragonModel, "../Graphics II Project/Mobile - Summoners War - DragonA/dragon_hr-light.obj");
-	thread thread5(&DEMO_APP::ThreadedLoading, this, dragonKnightModel, "../Graphics II Project/Mobile - Summoners War - Dragon KnightA/dragonknight_hr-dark.obj");
-	
+	viewport2.Width = BACKBUFFER_WIDTH *0.5f;
+	viewport2.Height = BACKBUFFER_HEIGHT ;
+	viewport2.MaxDepth = 1;
+	viewport2.MinDepth = 0;
+	viewport2.TopLeftX = BACKBUFFER_WIDTH *0.5f;
+	viewport2.TopLeftY = 0;
 
-	//thread thread2(deadpoolModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/deadpool sword 1.obj", deadpoolModel.pos, deadpoolModel.uv, deadpoolModel.normal), this);
-
-	//thread thread3(groundModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/Ground.obj", groundModel.pos, groundModel.uv, groundModel.normal));
-
-	//thread thread4(dragonModel.loadOBJ("../Graphics II Project/Dragon/dragon1.obj", dragonModel.pos, dragonModel.uv, dragonModel.normal));
-
-	//(miniGunModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/DP GUN 1.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal));
-	////miniGunModel.loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/crate.obj", miniGunModel.pos, miniGunModel.uv, miniGunModel.normal);
-
-	//(deadpoolModel->loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/deadpool sword 1.obj"/*, deadpoolModel.pos, deadpoolModel.uv, deadpoolModel.normal*/));
-
-	//(groundModel->loadOBJ("../Graphics II Project/sbv9148irj-Deadpool/Deadpool/Ground.obj"/*, groundModel.pos, groundModel.uv, groundModel.normal*/));
-
-	//(dragonModel->loadOBJ("../Graphics II Project/Dragon/dragon2.obj"/*, dragonModel.pos, dragonModel.uv, dragonModel.normal*/));
-
-	// make second viewport
-#pragma endregion
+	context->RSSetViewports(1, &viewport2);
 
 	// TODO: PART 4 STEP 1
 #pragma region triangleStuff
@@ -324,7 +328,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	
 #pragma endregion
 	
-	thread1.join();
+	//thread1.join();
 	thread2.join();
 	thread3.join();
 	thread4.join();
@@ -469,7 +473,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #pragma endregion
 
-#pragma region Textures
+#pragma region Depth/DSV SampleDesc
 	D3D11_TEXTURE2D_DESC descDepth;
 	descDepth.Width = BACKBUFFER_WIDTH;
 	descDepth.Height = BACKBUFFER_HEIGHT;
@@ -584,6 +588,11 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	subDragonKnightIndexData.SysMemPitch = 0;
 	subDragonKnightIndexData.SysMemSlicePitch = 0;
 
+	D3D11_SUBRESOURCE_DATA subInstanceData = {};
+	subInstanceData.pSysMem = &instanes;
+	subInstanceData.SysMemPitch = 0;
+	subInstanceData.SysMemSlicePitch = 0;
+
 	D3D11_SUBRESOURCE_DATA subTextureData[faceDiff_numlevels] = {};
 	for (int i = 0; i < faceDiff_numlevels; i++)
 	{
@@ -603,8 +612,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	device->CreateBuffer(&groundBufferDesc, &groundSubData, &vertexGroundBuffer);
 	device->CreateBuffer(&groundIndexBufferDesc, &groundIndexData, &groundIndexBuffer);
 
-	device->CreateBuffer(&gunBufferDesc, &subMiniGunData, &vertexMiniGunBuffer);
-	device->CreateBuffer(&gunIndexBufferDesc, &minigunIndexData, &MinigunIndexBuffer);
+	//device->CreateBuffer(&gunBufferDesc, &subMiniGunData, &vertexMiniGunBuffer);
+	//device->CreateBuffer(&gunIndexBufferDesc, &minigunIndexData, &MinigunIndexBuffer);
 
 	device->CreateBuffer(&deadPoolBufferDesc, &deadPoolData, &vertexDeadPoolBuffer);
 	device->CreateBuffer(&deadPoolIndexBufferDesc, &deadPoolIndexData, &deadPoolIndexBuffer);
@@ -618,13 +627,14 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	device->CreateBuffer(&dragonKnightBufferDesc, &subDragonKnightData, &vertexDragonKnightBuffer);
 	device->CreateBuffer(&dragonKnightIndexBufferDesc, &subDragonKnightIndexData, &dragonKnightIndexBuffer);
 
+
 	device->CreateTexture2D(&descDepth, NULL, &depthStencil);
 	device->CreateDepthStencilView(depthStencil, &descDSV, &depthStencilView);
 	device->CreateTexture2D(&textureDesc, subTextureData, &texturesArray);
 	device->CreateShaderResourceView(texturesArray, nullptr, &SRV);
 
 	// loading using the ddstexture
-	CreateDDSTextureFromFile(device, L"../Graphics II Project/sbv9148irj-Deadpool/Deadpool/WEP_MP7_TEXTSET_Color_NormX.dds", NULL, &GunSRV);
+	//CreateDDSTextureFromFile(device, L"../Graphics II Project/sbv9148irj-Deadpool/Deadpool/WEP_MP7_TEXTSET_Color_NormX.dds", NULL, &GunSRV);
 	CreateDDSTextureFromFile(device, L"Seamless tileable ice snow cracks ground texture.dds", NULL, &GroundSRV);
 	CreateDDSTextureFromFile(device, L"../Graphics II Project/sbv9148irj-Deadpool/Deadpool/DPROP_DeadpoolSword_TEXSET_Color_NormX.dds", NULL, &deadPoolSRV);
 	CreateDDSTextureFromFile(device, L"SunsetSkybox.dds", NULL, &skyboxSRV);
@@ -638,6 +648,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	device->CreatePixelShader(Lights, sizeof(Lights), nullptr, &LightShader);
 	device->CreatePixelShader(SkyBoxPixelShader_PS, sizeof(SkyBoxPixelShader_PS), nullptr, &skyBoxPixelShader);
 	device->CreateVertexShader(SkyBoxVertexShader_VS, sizeof(SkyBoxVertexShader_VS),nullptr, &skyBoxVertexShader);
+	device->CreateVertexShader(InstanceShader, sizeof(InstanceShader), nullptr, &InstanceVertexShader);
 
 #pragma endregion
 	// TODO: PART 2 STEP 8a
@@ -717,11 +728,21 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	constBufferPointLight.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	constBufferPointLight.StructureByteStride = sizeof(float);
 
+	D3D11_BUFFER_DESC constBufferInstance;
+	ZeroMemory(&constBufferInstance, sizeof(D3D11_BUFFER_DESC));
+	constBufferInstance.ByteWidth = sizeof(instanes);
+	constBufferInstance.Usage = D3D11_USAGE_DYNAMIC;
+	constBufferInstance.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	constBufferInstance.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	constBufferInstance.StructureByteStride = sizeof(XMMATRIX);
+
+
 	device->CreateBuffer(&constbufferstuff, NULL, &ConstObjectBuffer);
 	device->CreateBuffer(&constbufferstuffScene, NULL, &ConstSceneBuffer);
 	device->CreateBuffer(&constbufferDirectionalLight, NULL, &ConstantDirectionalLightBuffer);
 	device->CreateBuffer(&constBufferSpotLight, NULL, &ConstantSpotLightBuffer);
 	device->CreateBuffer(&constBufferPointLight, NULL, &ConstantPointLightBuffer);
+	device->CreateBuffer(&constBufferInstance, &subInstanceData, &InstanceConstanceBuffer);
 
 #pragma endregion
 
@@ -742,8 +763,18 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	miniGun.worldMatrix.r[3].m128_f32[1] = 0;
 	miniGun.worldMatrix.r[3].m128_f32[2] = -3;
 
-	camera.projectionMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(65), AspectRatio, zNear, zFar);
+	camera.projectionMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(65), AspectRatio*0.5f, zNear, zFar);
 	camera.viewMatrix = XMMatrixInverse(NULL, XMMatrixIdentity());
+	
+	camera2.projectionMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(65), AspectRatio*0.5f, zNear, zFar);
+	camera2.viewMatrix = XMMatrixInverse(NULL, XMMatrixIdentity());
+	
+	camera2.viewMatrix = XMMatrixTranslation(20, 20, 0);
+	
+	XMVECTOR temp = { camera2.viewMatrix.r[3].m128_f32[0], camera2.viewMatrix.r[3].m128_f32[1], camera2.viewMatrix.r[3].m128_f32[2], camera2.viewMatrix.r[3].m128_f32[3] };
+
+	XMVECTOR worldUp = { 0,1,0 };
+	camera2.viewMatrix = XMMatrixLookAtLH(temp, { 0,0,0 }, worldUp);
 
 	Deadpool.worldMatrix = XMMatrixIdentity();
 	Deadpool.worldMatrix = XMMatrixScaling(0.05f, 0.05f, 0.05f);
@@ -780,17 +811,37 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	skyBox.worldMatrix = XMMatrixIdentity();
 	skyBox.worldMatrix = XMMatrixTranslation(0, 0, 0);
 
-	dragon.worldMatrix = XMMatrixIdentity();
+	/*dragon.worldMatrix = XMMatrixIdentity();
 	dragon.worldMatrix = XMMatrixScaling(0.05f, 0.05f, 0.05f);
 	dragon.worldMatrix.r[3].m128_f32[0] = 0;
 	dragon.worldMatrix.r[3].m128_f32[1] = 0;
-	dragon.worldMatrix.r[3].m128_f32[2] = 10;
+	dragon.worldMatrix.r[3].m128_f32[2] = 10;*/
 
 	dragonKnight.worldMatrix = XMMatrixIdentity();
 	dragonKnight.worldMatrix = XMMatrixScaling(0.05f, 0.05f, 0.05f);
 	dragonKnight.worldMatrix.r[3].m128_f32[0] = 0;
 	dragonKnight.worldMatrix.r[3].m128_f32[1] = 0;
 	dragonKnight.worldMatrix.r[3].m128_f32[2] = 1;
+
+	//instanes[0] = dragon.worldMatrix = XMMatrixIdentity();
+	dragon.worldMatrix = XMMatrixIdentity();
+	dragon.worldMatrix = XMMatrixScaling(0.05f, 0.05f, 0.05f);
+	instanes[0] = dragon.worldMatrix;
+	instanes[0].r[3].m128_f32[0]= 0;
+	instanes[0].r[3].m128_f32[1]= 0;
+	instanes[0].r[3].m128_f32[2]= 10;
+
+	instanes[1] = dragon.worldMatrix ;
+	instanes[1].r[3].m128_f32[0] = 10;
+	instanes[1].r[3].m128_f32[1] = 0;
+	instanes[1].r[3].m128_f32[2] = 10;
+
+	instanes[2] = dragon.worldMatrix;
+	instanes[2].r[3].m128_f32[0] = -10;
+	instanes[2].r[3].m128_f32[1] = 0;
+	instanes[2].r[3].m128_f32[2] = 10;
+
+
 
 
 #pragma endregion
@@ -842,16 +893,19 @@ bool DEMO_APP::Run()
 	// set the render target equal to the backbuffer for use bind one or more render targets atomically
 	// (number of render targets to set(usually 1), pointer to list of viewable objects, the depthstencilview(if null it is not bound))
 	context->OMSetRenderTargets(1, &rtv, depthStencilView);
+	context->OMSetRenderTargets(1, &rtv2, depthStencilView);
 	
 	// TODO: PART 1 STEP 7b
 	
 	// set the device to draw at the viewports starting position
-	context->RSSetViewports(1, &viewport);
+	//context->RSSetViewports(1, &viewport);
+	//context->RSSetViewports(1, &viewport2);
 
 	// TODO: PART 1 STEP 7c
 	
 	// clear the screen
-	context->ClearRenderTargetView(rtv, &(backcolor.a,backcolor.g,backcolor.b,backcolor.r));
+	context->ClearRenderTargetView(rtv, &(backcolor.a, backcolor.g, backcolor.b, backcolor.r));
+	context->ClearRenderTargetView(rtv2, &(backcolor.a,backcolor.g,backcolor.b,backcolor.r));
 	context->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH, 1, 0);
 
 	 //TODO: PART 5 STEP 4
@@ -862,6 +916,7 @@ bool DEMO_APP::Run()
 	GetCursorPos(&currPos);
 	VS_ViewMatrix = camera.viewMatrix;
 
+
 #pragma endregion
 
 	
@@ -869,22 +924,18 @@ bool DEMO_APP::Run()
 	
 	camera.viewMatrix = XMMatrixInverse(NULL, VS_ViewMatrix);
 
-	D3D11_MAPPED_SUBRESOURCE map2;
-	context->Map(ConstSceneBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map2);
-	memcpy(map2.pData, &camera, sizeof(SCENE_TO_VRAM));
-	context->Unmap(ConstSceneBuffer, 0);
 
-	// TODO: PART 3 STEP 6
-	// 0 and 1 corelate to the buffer 0 or 1 in the vertex shader HLSL
 	context->VSSetConstantBuffers(0, 1, &ConstObjectBuffer);
 	context->VSSetConstantBuffers(1, 1, &ConstSceneBuffer);
 	context->PSSetConstantBuffers(1, 1, &ConstantDirectionalLightBuffer);
 	context->PSSetConstantBuffers(0, 1, &ConstantSpotLightBuffer);
 	context->PSSetConstantBuffers(2, 1, &ConstantPointLightBuffer);
+	context->VSSetConstantBuffers(2, 1, &InstanceConstanceBuffer);
+	
 
-	// TODO: PART 2 STEP 9a
+	// TODO: PART 3 STEP 6
+	// 0 and 1 corelate to the buffer 0 or 1 in the vertex shader HLSL
 
-	// TODO: PART 2 STEP 9b
 
 	context->VSSetShader(vertexShader, NULL, 0);
 	context->PSSetShader(pixelShader, NULL, 0);
@@ -896,144 +947,178 @@ bool DEMO_APP::Run()
 	context->IASetInputLayout(input);
 
 #pragma region Draw
+	for (int i = 0; i < 2; i++)
+	{
+		if (i == 0)
+		{
+			D3D11_MAPPED_SUBRESOURCE map2;
+			context->Map(ConstSceneBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map2);
+			memcpy(map2.pData, &camera, sizeof(SCENE_TO_VRAM));
+			context->Unmap(ConstSceneBuffer, 0);
 
-	// for the anti aliseing
-	context->RSSetState(rasterizer1);
+		
 
-	D3D11_MAPPED_SUBRESOURCE skyboxMap;
-	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &skyboxMap);
-	memcpy(skyboxMap.pData, &skyBox, sizeof(OBJECT_TO_VRAM));
-	context->Unmap(ConstObjectBuffer, 0);
+			context->RSSetViewports(1, &viewport);
 
-	UINT skyboxStride = sizeof(COMPLEX_VERTEX);
-	UINT skyboxOffset = 0;
-	context->IASetVertexBuffers(0, 1, &vertexSkyBoxBuffer, &skyboxStride, &skyboxOffset);
-	context->IASetIndexBuffer(skyBoxIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-	context->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	context->IASetInputLayout(skyBoxInput);
-	context->PSSetShaderResources(0, 1, &skyboxSRV);
-	context->VSSetShader(skyBoxVertexShader, NULL, 0);
-	context->PSSetShader(skyBoxPixelShader, NULL, 0);
-	context->DrawIndexed(36, 0, 0);
+		}
+		else
+		{
+			D3D11_MAPPED_SUBRESOURCE map3;
+			context->Map(ConstSceneBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map3);
+			memcpy(map3.pData, &camera2, sizeof(SCENE_TO_VRAM));
+			context->Unmap(ConstSceneBuffer, 0);
 
-	// sets the skybox out to 1 and everything else below is at its own depth
-	context->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH, 1, 0);
+			context->RSSetViewports(1, &viewport2);
+			skyBox.worldMatrix.r[3] = XMMatrixInverse(NULL, camera2.viewMatrix).r[3];
 
-	context->RSSetState(rasterizer2);
-
-	D3D11_MAPPED_SUBRESOURCE groundMap;
-	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &groundMap);
-	memcpy(groundMap.pData, &ground, sizeof(OBJECT_TO_VRAM));
-	context->Unmap(ConstObjectBuffer, 0);
-
-	UINT groundstride = sizeof(Model::vertex_Normal);
-	UINT groundOffset = 0;
-	context->IASetVertexBuffers(0, 1, &vertexGroundBuffer, &groundstride, &groundOffset);
-	context->IASetIndexBuffer(groundIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-	context->IASetInputLayout(input);
-	context->PSSetShaderResources(0, 1, &GroundSRV);
-	context->VSSetShader(vertexShader, NULL, 0);
-	context->PSSetShader(LightShader, NULL, 0);
-	context->DrawIndexed(groundModel->uniqueIndexBuffer.size(), 0, 0);
+		}
 
 
-	D3D11_MAPPED_SUBRESOURCE triMap;
-	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &triMap);
-	memcpy(triMap.pData, &star, sizeof(OBJECT_TO_VRAM));
-	context->Unmap(ConstObjectBuffer, 0);
-	// triangle created
-	UINT starstride = sizeof(SIMPLE_VERTEX);
-	UINT staroffset = 0;
-	context->IASetVertexBuffers(0, 1, &vertexStarBuffer, &starstride, &staroffset);
-	context->IASetIndexBuffer(starIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-	context->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	context->IASetInputLayout(starInput);
-	// set the shaders for the grid to be drawn
-	context->VSSetShader(StarVertexShader, NULL, 0);
-	context->PSSetShader(StarPIxelShader, NULL, 0);
 
-	context->DrawIndexed(60, 0, 0);
+		// for the anti aliseing
+		context->RSSetState(rasterizer1);
 
-	D3D11_MAPPED_SUBRESOURCE gunMap;
-	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &gunMap);
-	memcpy(gunMap.pData, &miniGun, sizeof(OBJECT_TO_VRAM));
-	context->Unmap(ConstObjectBuffer, 0);
+		D3D11_MAPPED_SUBRESOURCE skyboxMap;
+		context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &skyboxMap);
+		memcpy(skyboxMap.pData, &skyBox, sizeof(OBJECT_TO_VRAM));
+		context->Unmap(ConstObjectBuffer, 0);
 
-	UINT gunstride = sizeof(Model::vertex_Normal);
-	UINT gunOffset = 0;
-	context->IASetVertexBuffers(0, 1, &vertexMiniGunBuffer, &gunstride, &gunOffset);
-	context->IASetIndexBuffer(MinigunIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-	context->IASetInputLayout(input);
-	context->PSSetShaderResources(0, 1, &GunSRV);
-	context->VSSetShader(vertexShader, NULL, 0);
-	context->PSSetShader(LightShader, NULL, 0);
-	context->DrawIndexed(miniGunModel->uniqueIndexBuffer.size(), 0, 0);
+		UINT skyboxStride = sizeof(COMPLEX_VERTEX);
+		UINT skyboxOffset = 0;
+		context->IASetVertexBuffers(0, 1, &vertexSkyBoxBuffer, &skyboxStride, &skyboxOffset);
+		context->IASetIndexBuffer(skyBoxIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		context->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		context->IASetInputLayout(skyBoxInput);
+		context->PSSetShaderResources(0, 1, &skyboxSRV);
+		context->VSSetShader(skyBoxVertexShader, NULL, 0);
+		context->PSSetShader(skyBoxPixelShader, NULL, 0);
+		context->DrawIndexed(36, 0, 0);
 
-	D3D11_MAPPED_SUBRESOURCE DeadPoolMap;
-	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DeadPoolMap);
-	memcpy(DeadPoolMap.pData, &Deadpool, sizeof(OBJECT_TO_VRAM));
-	context->Unmap(ConstObjectBuffer, 0);
+		// sets the skybox out to 1 and everything else below is at its own depth
+		context->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH, 1, 0);
 
-	UINT deadpoolStride = sizeof(Model::vertex_Normal);
-	UINT deadPoolOffset = 0;
-	context->IASetVertexBuffers(0, 1, &vertexDeadPoolBuffer, &deadpoolStride, &deadPoolOffset);
-	context->IASetIndexBuffer(deadPoolIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-	context->IASetInputLayout(input);
-	context->PSSetShaderResources(0, 1, &deadPoolSRV);
-	context->VSSetShader(vertexShader, NULL, 0);
-	context->PSSetShader(LightShader, NULL, 0);
-	context->DrawIndexed(deadpoolModel->uniqueIndexBuffer.size(), 0, 0);
+		context->RSSetState(rasterizer2);
 
-	D3D11_MAPPED_SUBRESOURCE DragonMap;
-	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DragonMap);
-	memcpy(DragonMap.pData, &dragon, sizeof(OBJECT_TO_VRAM));
-	context->Unmap(ConstObjectBuffer, 0);
+		D3D11_MAPPED_SUBRESOURCE groundMap;
+		context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &groundMap);
+		memcpy(groundMap.pData, &ground, sizeof(OBJECT_TO_VRAM));
+		context->Unmap(ConstObjectBuffer, 0);
 
-	UINT dragonStride = sizeof(Model::vertex_Normal);
-	UINT dragonOffset = 0;
-	context->IASetVertexBuffers(0, 1, &vertexDragonBuffer, &dragonStride, &dragonOffset);
-	context->IASetIndexBuffer(dragonIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-	context->IASetInputLayout(input);
-	context->PSSetShaderResources(0, 1, &dragonSRV);
-	context->VSSetShader(vertexShader, NULL, 0);
-	context->PSSetShader(LightShader, NULL, 0);
-	context->DrawIndexed(dragonModel->uniqueIndexBuffer.size(), 0, 0);
-
-	D3D11_MAPPED_SUBRESOURCE DragonKnightMap;
-	context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DragonKnightMap);
-	memcpy(DragonKnightMap.pData, &dragonKnight, sizeof(OBJECT_TO_VRAM));
-	context->Unmap(ConstObjectBuffer, 0);
-
-	UINT dragonKnightStride = sizeof(Model::vertex_Normal);
-	UINT dragonKnightOffset = 0;
-	context->IASetVertexBuffers(0, 1, &vertexDragonKnightBuffer, &dragonKnightStride, &dragonKnightOffset);
-	context->IASetIndexBuffer(dragonKnightIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-	context->IASetInputLayout(input);
-	context->PSSetShaderResources(0, 1, &dragonKnightSRV);
-	context->VSSetShader(vertexShader, NULL, 0);
-	context->PSSetShader(LightShader, NULL, 0);
-	context->DrawIndexed(dragonKnightModel->uniqueIndexBuffer.size(), 0, 0);
-	// END PART 2
-
-	D3D11_MAPPED_SUBRESOURCE DirectionalLightMap;
-	context->Map(ConstantDirectionalLightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DirectionalLightMap);
-	memcpy(DirectionalLightMap.pData, &DirectionalLight, sizeof(DIRECTIONAL_LIGHT));
-	context->Unmap(ConstantDirectionalLightBuffer, 0);
-	context->PSSetShader(LightShader, NULL, 0);
-
-	D3D11_MAPPED_SUBRESOURCE SpotLightMap;
-	context->Map(ConstantSpotLightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &SpotLightMap);
-	memcpy(SpotLightMap.pData, &SpotLight, sizeof(SPOT_LIGHT));
-	context->Unmap(ConstantSpotLightBuffer, 0);
-	context->PSSetShader(LightShader, NULL, 0);
-
-	D3D11_MAPPED_SUBRESOURCE PointLightMap;
-	context->Map(ConstantPointLightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &PointLightMap);
-	memcpy(PointLightMap.pData, &PointLight, sizeof(POINT_LIGHT));
-	context->Unmap(ConstantPointLightBuffer, 0);
-	context->PSSetShader(LightShader, NULL, 0);
+		UINT groundstride = sizeof(Model::vertex_Normal);
+		UINT groundOffset = 0;
+		context->IASetVertexBuffers(0, 1, &vertexGroundBuffer, &groundstride, &groundOffset);
+		context->IASetIndexBuffer(groundIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		context->IASetInputLayout(input);
+		context->PSSetShaderResources(0, 1, &GroundSRV);
+		context->VSSetShader(vertexShader, NULL, 0);
+		context->PSSetShader(LightShader, NULL, 0);
+		context->DrawIndexed(groundModel->uniqueIndexBuffer.size(), 0, 0);
 
 
+		D3D11_MAPPED_SUBRESOURCE triMap;
+		context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &triMap);
+		memcpy(triMap.pData, &star, sizeof(OBJECT_TO_VRAM));
+		context->Unmap(ConstObjectBuffer, 0);
+		// triangle created
+		UINT starstride = sizeof(SIMPLE_VERTEX);
+		UINT staroffset = 0;
+		context->IASetVertexBuffers(0, 1, &vertexStarBuffer, &starstride, &staroffset);
+		context->IASetIndexBuffer(starIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		context->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		context->IASetInputLayout(starInput);
+		// set the shaders for the grid to be drawn
+		context->VSSetShader(StarVertexShader, NULL, 0);
+		context->PSSetShader(StarPIxelShader, NULL, 0);
+
+		context->DrawIndexed(60, 0, 0);
+
+		//D3D11_MAPPED_SUBRESOURCE gunMap;
+		//context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &gunMap);
+		//memcpy(gunMap.pData, &miniGun, sizeof(OBJECT_TO_VRAM));
+		//context->Unmap(ConstObjectBuffer, 0);
+
+		//UINT gunstride = sizeof(Model::vertex_Normal);
+		//UINT gunOffset = 0;
+		//context->IASetVertexBuffers(0, 1, &vertexMiniGunBuffer, &gunstride, &gunOffset);
+		//context->IASetIndexBuffer(MinigunIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		//context->IASetInputLayout(input);
+		//context->PSSetShaderResources(0, 1, &GunSRV);
+		//context->VSSetShader(vertexShader, NULL, 0);
+		//context->PSSetShader(LightShader, NULL, 0);
+		//context->DrawIndexed(miniGunModel->uniqueIndexBuffer.size(), 0, 0);
+
+		D3D11_MAPPED_SUBRESOURCE DeadPoolMap;
+		context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DeadPoolMap);
+		memcpy(DeadPoolMap.pData, &Deadpool, sizeof(OBJECT_TO_VRAM));
+		context->Unmap(ConstObjectBuffer, 0);
+
+		UINT deadpoolStride = sizeof(Model::vertex_Normal);
+		UINT deadPoolOffset = 0;
+		context->IASetVertexBuffers(0, 1, &vertexDeadPoolBuffer, &deadpoolStride, &deadPoolOffset);
+		context->IASetIndexBuffer(deadPoolIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		context->IASetInputLayout(input);
+		context->PSSetShaderResources(0, 1, &deadPoolSRV);
+		context->VSSetShader(vertexShader, NULL, 0);
+		context->PSSetShader(LightShader, NULL, 0);
+		context->DrawIndexed(deadpoolModel->uniqueIndexBuffer.size(), 0, 0);
+
+		D3D11_MAPPED_SUBRESOURCE DragonMap;
+		context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DragonMap);
+		memcpy(DragonMap.pData, &dragon, sizeof(OBJECT_TO_VRAM));
+		context->Unmap(ConstObjectBuffer, 0);
+
+		D3D11_MAPPED_SUBRESOURCE DragonInstanceMap;
+		context->Map(InstanceConstanceBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DragonInstanceMap);
+		memcpy(DragonInstanceMap.pData, instanes, sizeof(instanes));
+		context->Unmap(InstanceConstanceBuffer, 0);
+
+		UINT dragonStride = sizeof(Model::vertex_Normal);
+		UINT dragonOffset = 0;
+		context->IASetVertexBuffers(0, 1, &vertexDragonBuffer, &dragonStride, &dragonOffset);
+		context->IASetIndexBuffer(dragonIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		context->IASetInputLayout(input);
+		context->PSSetShaderResources(0, 1, &dragonSRV);
+		//context->VSSetShader(vertexShader, NULL, 0);
+		context->VSSetShader(InstanceVertexShader, NULL, 0);
+		context->PSSetShader(LightShader, NULL, 0);
+		//context->DrawIndexed(dragonModel->uniqueIndexBuffer.size(), 0, 0);
+		context->DrawIndexedInstanced(dragonModel->uniqueIndexBuffer.size(), 3, 0, 0, 0);
+
+		D3D11_MAPPED_SUBRESOURCE DragonKnightMap;
+		context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DragonKnightMap);
+		memcpy(DragonKnightMap.pData, &dragonKnight, sizeof(OBJECT_TO_VRAM));
+		context->Unmap(ConstObjectBuffer, 0);
+
+		UINT dragonKnightStride = sizeof(Model::vertex_Normal);
+		UINT dragonKnightOffset = 0;
+		context->IASetVertexBuffers(0, 1, &vertexDragonKnightBuffer, &dragonKnightStride, &dragonKnightOffset);
+		context->IASetIndexBuffer(dragonKnightIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		context->IASetInputLayout(input);
+		context->PSSetShaderResources(0, 1, &dragonKnightSRV);
+		context->VSSetShader(vertexShader, NULL, 0);
+		context->PSSetShader(LightShader, NULL, 0);
+		context->DrawIndexed(dragonKnightModel->uniqueIndexBuffer.size(), 0, 0);
+		// END PART 2
+
+		D3D11_MAPPED_SUBRESOURCE DirectionalLightMap;
+		context->Map(ConstantDirectionalLightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DirectionalLightMap);
+		memcpy(DirectionalLightMap.pData, &DirectionalLight, sizeof(DIRECTIONAL_LIGHT));
+		context->Unmap(ConstantDirectionalLightBuffer, 0);
+		context->PSSetShader(LightShader, NULL, 0);
+
+		D3D11_MAPPED_SUBRESOURCE SpotLightMap;
+		context->Map(ConstantSpotLightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &SpotLightMap);
+		memcpy(SpotLightMap.pData, &SpotLight, sizeof(SPOT_LIGHT));
+		context->Unmap(ConstantSpotLightBuffer, 0);
+		context->PSSetShader(LightShader, NULL, 0);
+
+		D3D11_MAPPED_SUBRESOURCE PointLightMap;
+		context->Map(ConstantPointLightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &PointLightMap);
+		memcpy(PointLightMap.pData, &PointLight, sizeof(POINT_LIGHT));
+		context->Unmap(ConstantPointLightBuffer, 0);
+		context->PSSetShader(LightShader, NULL, 0);
+
+	}
 	
 #pragma endregion
 
@@ -1063,6 +1148,7 @@ SCENE_TO_VRAM DEMO_APP::Movement(SCENE_TO_VRAM &_camera)
 	{
 		XMVECTOR temp = { 0, 0,5 * -timer.Delta(), _camera.viewMatrix.r[3].m128_f32[3] };
 		_camera.viewMatrix = XMMatrixMultiply(XMMatrixTranslationFromVector(temp), _camera.viewMatrix);
+
 	}
 	if (GetAsyncKeyState('A')) // look left
 	{
@@ -1294,6 +1380,7 @@ bool DEMO_APP::ShutDown()
 	SAFE_RELEASE(device);
 	SAFE_RELEASE(context);
 	SAFE_RELEASE(rtv);
+	SAFE_RELEASE(rtv2);
 	SAFE_RELEASE(vertexShader);
 	SAFE_RELEASE(pixelShader);
 	SAFE_RELEASE(input);
@@ -1307,7 +1394,7 @@ bool DEMO_APP::ShutDown()
 	SAFE_RELEASE(skyBoxVertexShader);
 	SAFE_RELEASE(starInput);
 	SAFE_RELEASE(skyBoxInput);
-	SAFE_RELEASE(GunSRV);
+	//SAFE_RELEASE(GunSRV);
 	SAFE_RELEASE(SRV);
 	SAFE_RELEASE(GroundSRV);
 	SAFE_RELEASE(deadPoolSRV);
@@ -1316,12 +1403,12 @@ bool DEMO_APP::ShutDown()
 	SAFE_RELEASE(rasterizer1);
 	SAFE_RELEASE(rasterizer2);
 	SAFE_RELEASE(vertexStarBuffer);
-	SAFE_RELEASE(vertexMiniGunBuffer);
+	//SAFE_RELEASE(vertexMiniGunBuffer);
 	SAFE_RELEASE(vertexGroundBuffer);
 	SAFE_RELEASE(vertexDeadPoolBuffer);
 	SAFE_RELEASE(vertexSkyBoxBuffer);
 	SAFE_RELEASE(starIndexBuffer);
-	SAFE_RELEASE(MinigunIndexBuffer);
+	//SAFE_RELEASE(MinigunIndexBuffer);
 	SAFE_RELEASE(groundIndexBuffer);
 	SAFE_RELEASE(deadPoolIndexBuffer);
 	SAFE_RELEASE(skyBoxIndexBuffer);
@@ -1336,12 +1423,14 @@ bool DEMO_APP::ShutDown()
 	SAFE_RELEASE(vertexDragonKnightBuffer);
 	SAFE_RELEASE(dragonKnightIndexBuffer);
 	SAFE_RELEASE(dragonKnightSRV);
-
+	SAFE_RELEASE(InstanceConstanceBuffer);
+	SAFE_RELEASE(InstanceVertexShader);
 	delete miniGunModel;
 	delete groundModel;
 	delete deadpoolModel;
 	delete dragonModel;
 	delete dragonKnightModel;
+
 	UnregisterClass( L"DirectXApplication", application ); 
 	return true;
 }

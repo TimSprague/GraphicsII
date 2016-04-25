@@ -62,6 +62,7 @@
     <FxCompile Include="Lights.hlsl" />
     <FxCompile Include="SkyBoxPixelShader_PS.hlsl" />
     <FxCompile Include="SkyBoxVertexShader_VS.hlsl" />
+    <FxCompile Include="InstanceShader.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Lighting.hlsli" />

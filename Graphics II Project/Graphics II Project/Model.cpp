@@ -95,16 +95,22 @@ void Model::loadOBJ(const char *path/*, vector<float3> & out_verticies, vector<f
 		//out_normals.push_back(tempNormal);
 	}
 	vector<float3> tempUnique;
+	vector<float3> tempUniqueUV;
 	for (unsigned int i = 0; i < vertexIndices.size(); i++)
 	{
 		unsigned int vertexIndex = vertexIndices[i];
+		unsigned int uvIndex = uvIndices[i];
+		unsigned int normIndex = normalIndices[i];
 		float3 tempVertex = temp_vertices[vertexIndex - 1];
+		float3 tempUV = temp_uvs[uvIndex - 1];
+		float3 tempNorm = temp_normals[normIndex - 1];
 		unique = true;
 		for (unsigned int j = 0; j < uniqueVerts.size(); j++)
 		{
 			float3 uniqueIndex = tempUnique[j];
-			// check for like positions and then
-			if (tempVertex.x == uniqueIndex.x && tempVertex.y == uniqueIndex.y && tempVertex.z == uniqueIndex.z)
+			float3 uniqueUV = tempUniqueUV[j];
+			// check for like positions and then check for unique UV'S as well .... figure this out NOW
+			if (tempVertex.x == uniqueIndex.x && tempVertex.y == uniqueIndex.y && tempVertex.z == uniqueIndex.z && tempUV.x == uniqueUV.x && tempUV.y == uniqueUV.y )
 			{
 				// set unique to false
 				unique = false;
@@ -120,6 +126,7 @@ void Model::loadOBJ(const char *path/*, vector<float3> & out_verticies, vector<f
 			// add the current value into the index buffer that is pointing to the point inside /the /uniqueVert to find the correct pos
 			uniqueIndexBuffer.push_back(uniqueVerts.size());
 			tempUnique.push_back(tempVertex);
+			tempUniqueUV.push_back(tempUV);
 			// build unique verticies vector
 			vertex_Normal tempUniqueVertex;
 			tempUniqueVertex.pos = temp_vertices[vertexIndices[i] - 1];
