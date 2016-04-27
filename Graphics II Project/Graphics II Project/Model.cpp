@@ -137,3 +137,40 @@ void Model::loadOBJ(const char *path/*, vector<float3> & out_verticies, vector<f
 	}
 
 }
+
+//void Model::CalculateTangents(vector<Model::vertex_Normal> _uniqueVerts, vector<unsigned int> _uniqueIndex)
+//{
+//	for (unsigned int i = 0; i < _uniqueVerts.size(); i++)
+//	{
+//		float3 v0 = _uniqueVerts[i + 0].pos;
+//		float3 v1 = _uniqueVerts[i + 1].pos;
+//		float3 v2 = _uniqueVerts[i + 2].pos;
+//
+//		float3 uv0 = _uniqueVerts[i + 0].uv;
+//		float3 uv1 = _uniqueVerts[i + 1].uv;
+//		float3 uv2 = _uniqueVerts[i + 2].uv;
+//
+//		float3 deltaPos1 = { (v1.x - v0.x), (v1.y - v0.y), (v1.z - v0.z) };
+//		float3 deltaPos2 = { (v2.x - v0.x),(v2.y - v0.y),(v2.z - v0.z) };
+//
+//		float3 deltaUV1 = { (uv1.x - uv0.x),(uv1.y - uv0.y),(uv1.z - uv0.z) };
+//		float3 deltaUV2 = { (uv2.x - uv0.x),(uv2.y - uv0.y),(uv2.z - uv0.z) };
+//
+//		float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
+//
+//		Model::vertex_Normal temp;
+//		temp.tanget = { deltaPos1.x * deltaUV2.y - deltaPos2.x * deltaUV1.y ,deltaPos1.y*deltaUV2.y - deltaPos2.y*deltaUV1.y, deltaPos1.z*deltaUV2.y - deltaPos2.z*deltaUV1.y };
+//		temp.tanget = { temp.tanget.x*r,temp.tanget.y*r,temp.tanget.z*r };
+//
+//		temp.bitangent = { deltaPos2.x * deltaUV1.y - deltaPos1.x * deltaUV2.y ,deltaPos2.y*deltaUV1.y - deltaPos1.y*deltaUV2.y, deltaPos2.z*deltaUV1.y - deltaPos1.z*deltaUV2.y };
+//		temp.bitangent = { temp.bitangent.x*r,temp.bitangent.y*r,temp.bitangent.z*r };
+//
+//		temp.pos = _uniqueVerts[i].pos;
+//		temp.normal = _uniqueVerts[i].normal;
+//		temp.uv = _uniqueVerts[i].uv;
+//
+//
+//
+//		
+//	}
+//}

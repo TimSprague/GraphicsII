@@ -32,8 +32,10 @@
 
 
 
-#define BACKBUFFER_HEIGHT	850
-#define BACKBUFFER_WIDTH	1000
+#define BACKBUFFER_HEIGHT	768
+#define BACKBUFFER_WIDTH	1024
+#define AspectRatio ((float)BACKBUFFER_WIDTH/BACKBUFFER_HEIGHT)
+
 
 
 //name of the matrix, row 3, 128bit array of floats finding float32, at 0
@@ -53,7 +55,7 @@ class DEMO_APP
 	
 	ID3D11Device *device = {};                        // pointer to the direct3d device interfave
 	ID3D11DeviceContext *context = {};                // pointer to our direct3d device context
-	ID3D11RenderTargetView *rtv,*rtv2 = {};                 // pointer to the direct3d renderTargetView
+	ID3D11RenderTargetView *rtv = {};                 // pointer to the direct3d renderTargetView
 	IDXGISwapChain *swapchain = {};                   // pointer to the swap chain interface
 	D3D11_VIEWPORT viewport, viewport2;
 	ID3D11InputLayout *input = {};                    // pointer to the direct3d input
@@ -82,7 +84,6 @@ class DEMO_APP
 	ID3D11PixelShader *LightShader;
 	ID3D11PixelShader *skyBoxPixelShader;
 	ID3D11VertexShader *skyBoxVertexShader;
-	ID3D11VertexShader *InstanceVertexShader;
 
 	// BEGIN PART 3
 	// TODO: PART 3 STEP 1
@@ -93,8 +94,10 @@ class DEMO_APP
 	ID3D11Buffer *ConstantDirectionalLightBuffer;
 	ID3D11Buffer *ConstantSpotLightBuffer;
 
+	// for instances
 	XMMATRIX instanes[3];
 	ID3D11Buffer *InstanceConstanceBuffer;
+	ID3D11VertexShader *InstanceVertexShader;
 
 	//ID3D11Buffer *ConstModelBuffer;
 	
@@ -130,22 +133,34 @@ class DEMO_APP
 	float Xscale = (Yscale*AspectRatio);
 
 	void ThreadedLoading(Model* model, const char *path);
+	// no clue
+	DEMO_APP() {};
+
 
 public:
-	// BEGIN PART 2
-	// TODO: PART 2 STEP 1
 	
-	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
+	static DEMO_APP *singleton();
+
+	void DEMO_APP_Creation(HINSTANCE hinst, WNDPROC proc);
 	bool Run();
 	bool ShutDown();
 	SCENE_TO_VRAM Movement(SCENE_TO_VRAM&);
+	void Resize();
 };
+
+DEMO_APP *DEMO_APP::singleton()
+{
+	// create an instance to use later
+	static DEMO_APP viewScreenInstance;
+	// return the instance to get information from the project
+	return &viewScreenInstance;
+}
 
 //************************************************************
 //************ CREATION OF OBJECTS & RESOURCES ***************
 //************************************************************
 
-DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
+void DEMO_APP::DEMO_APP_Creation(HINSTANCE hinst, WNDPROC proc)
 {
 
 #pragma region model loading
@@ -222,7 +237,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	// using teh imagebuffers address to create the render target
 	// (pointer to the image/object, struct that describes the render target (backbuffer doesn't need this so null works), address of the backbuffer to be used)
 	device->CreateRenderTargetView(imageBackBuffer, NULL, &rtv);
-	device->CreateRenderTargetView(imageBackBuffer, NULL, &rtv2);
 	// must release the image buffer to release threads used by the COM object
 	imageBackBuffer->Release();
 
@@ -230,7 +244,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	// zero out the struct for viewport
 	ZeroMemory(&viewport, sizeof(D3D11_VIEWPORT));
 
-	viewport.Width = BACKBUFFER_WIDTH*0.5f;
+	viewport.Width = BACKBUFFER_WIDTH * 0.5f;
 	viewport.Height = BACKBUFFER_HEIGHT;
 	viewport.MaxDepth = 1;
 	viewport.MinDepth = 0;
@@ -241,7 +255,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	ZeroMemory(&viewport2, sizeof(D3D11_VIEWPORT));
 
 	viewport2.Width = BACKBUFFER_WIDTH *0.5f;
-	viewport2.Height = BACKBUFFER_HEIGHT ;
+	viewport2.Height = BACKBUFFER_HEIGHT;
 	viewport2.MaxDepth = 1;
 	viewport2.MinDepth = 0;
 	viewport2.TopLeftX = BACKBUFFER_WIDTH *0.5f;
@@ -763,13 +777,13 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	miniGun.worldMatrix.r[3].m128_f32[1] = 0;
 	miniGun.worldMatrix.r[3].m128_f32[2] = -3;
 
-	camera.projectionMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(65), AspectRatio*0.5f, zNear, zFar);
+	camera.projectionMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(65), AspectRatio * 0.5f, zNear, zFar);
 	camera.viewMatrix = XMMatrixInverse(NULL, XMMatrixIdentity());
 	
-	camera2.projectionMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(65), AspectRatio*0.5f, zNear, zFar);
+	camera2.projectionMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(65), AspectRatio * 0.5f, zNear, zFar);
 	camera2.viewMatrix = XMMatrixInverse(NULL, XMMatrixIdentity());
 	
-	camera2.viewMatrix = XMMatrixTranslation(20, 20, 0);
+	camera2.viewMatrix = XMMatrixTranslation(35, 15, 0);
 	
 	XMVECTOR temp = { camera2.viewMatrix.r[3].m128_f32[0], camera2.viewMatrix.r[3].m128_f32[1], camera2.viewMatrix.r[3].m128_f32[2], camera2.viewMatrix.r[3].m128_f32[3] };
 
@@ -818,27 +832,26 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	dragon.worldMatrix.r[3].m128_f32[2] = 10;*/
 
 	dragonKnight.worldMatrix = XMMatrixIdentity();
-	dragonKnight.worldMatrix = XMMatrixScaling(0.05f, 0.05f, 0.05f);
+	dragonKnight.worldMatrix = XMMatrixScaling(0.02f, 0.02f, 0.02f);
 	dragonKnight.worldMatrix.r[3].m128_f32[0] = 0;
-	dragonKnight.worldMatrix.r[3].m128_f32[1] = 0;
+	dragonKnight.worldMatrix.r[3].m128_f32[1] = -0.5f;
 	dragonKnight.worldMatrix.r[3].m128_f32[2] = 1;
 
-	//instanes[0] = dragon.worldMatrix = XMMatrixIdentity();
-	dragon.worldMatrix = XMMatrixIdentity();
-	dragon.worldMatrix = XMMatrixScaling(0.05f, 0.05f, 0.05f);
+	instanes[0] = dragon.worldMatrix = XMMatrixIdentity();
+	dragon.worldMatrix = XMMatrixScaling(0.02f, 0.02f, 0.02f);
 	instanes[0] = dragon.worldMatrix;
 	instanes[0].r[3].m128_f32[0]= 0;
-	instanes[0].r[3].m128_f32[1]= 0;
+	instanes[0].r[3].m128_f32[1]= -0.5f;
 	instanes[0].r[3].m128_f32[2]= 10;
 
 	instanes[1] = dragon.worldMatrix ;
 	instanes[1].r[3].m128_f32[0] = 10;
-	instanes[1].r[3].m128_f32[1] = 0;
+	instanes[1].r[3].m128_f32[1] = -0.5f;
 	instanes[1].r[3].m128_f32[2] = 10;
 
 	instanes[2] = dragon.worldMatrix;
 	instanes[2].r[3].m128_f32[0] = -10;
-	instanes[2].r[3].m128_f32[1] = 0;
+	instanes[2].r[3].m128_f32[1] = -0.5f;
 	instanes[2].r[3].m128_f32[2] = 10;
 
 
@@ -888,12 +901,13 @@ bool DEMO_APP::Run()
 	star.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(timer.Delta()), star.worldMatrix);
 	miniGun.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(timer.Delta()), miniGun.worldMatrix);
 
+
+
 	// make temp matrix then set it to the xyz for the direction and multiply it for rotation and pass values back to direction for spot light
 
 	// set the render target equal to the backbuffer for use bind one or more render targets atomically
 	// (number of render targets to set(usually 1), pointer to list of viewable objects, the depthstencilview(if null it is not bound))
 	context->OMSetRenderTargets(1, &rtv, depthStencilView);
-	context->OMSetRenderTargets(1, &rtv2, depthStencilView);
 	
 	// TODO: PART 1 STEP 7b
 	
@@ -905,7 +919,6 @@ bool DEMO_APP::Run()
 	
 	// clear the screen
 	context->ClearRenderTargetView(rtv, &(backcolor.a, backcolor.g, backcolor.b, backcolor.r));
-	context->ClearRenderTargetView(rtv2, &(backcolor.a,backcolor.g,backcolor.b,backcolor.r));
 	context->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH, 1, 0);
 
 	 //TODO: PART 5 STEP 4
@@ -1062,10 +1075,10 @@ bool DEMO_APP::Run()
 		context->PSSetShader(LightShader, NULL, 0);
 		context->DrawIndexed(deadpoolModel->uniqueIndexBuffer.size(), 0, 0);
 
-		D3D11_MAPPED_SUBRESOURCE DragonMap;
-		context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DragonMap);
-		memcpy(DragonMap.pData, &dragon, sizeof(OBJECT_TO_VRAM));
-		context->Unmap(ConstObjectBuffer, 0);
+		//D3D11_MAPPED_SUBRESOURCE DragonMap;
+		//context->Map(ConstObjectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DragonMap);
+		//memcpy(DragonMap.pData, &dragon, sizeof(OBJECT_TO_VRAM));
+		//context->Unmap(ConstObjectBuffer, 0);
 
 		D3D11_MAPPED_SUBRESOURCE DragonInstanceMap;
 		context->Map(InstanceConstanceBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &DragonInstanceMap);
@@ -1357,6 +1370,20 @@ SCENE_TO_VRAM DEMO_APP::Movement(SCENE_TO_VRAM &_camera)
 	skyBox.worldMatrix.r[3].m128_f32[2] = _camera.viewMatrix.r[3].m128_f32[2];
 	skyBox.worldMatrix.r[3].m128_f32[3] = _camera.viewMatrix.r[3].m128_f32[3];
 
+	camera2.viewMatrix = XMMatrixMultiply( XMMatrixRotationY(timer.Delta()*0.05f),camera2.viewMatrix);
+
+	//XMVECTOR temp = { camera2.viewMatrix.r[3].m128_f32[0], camera2.viewMatrix.r[3].m128_f32[1], camera2.viewMatrix.r[3].m128_f32[2], camera2.viewMatrix.r[3].m128_f32[3] };
+
+	//camera2.viewMatrix.r[3].m128_f32[0] = 0;
+	//camera2.viewMatrix.r[3].m128_f32[1] = 0;
+	//camera2.viewMatrix.r[3].m128_f32[2] = 0;
+	//camera2.viewMatrix.r[3].m128_f32[3] = 1;
+
+	////camera2.viewMatrix = 
+	//XMVECTOR worldUp = { 0,1,0 };
+	//camera2.viewMatrix = XMMatrixLookAtLH(temp, { 0,0,0 }, worldUp);
+
+
 	return _camera;
 }
 
@@ -1373,6 +1400,7 @@ void DEMO_APP::ThreadedLoading(Model* model, const char *path)
 bool DEMO_APP::ShutDown()
 {
 	// TODO: PART 1 STEP 6
+	swapchain->SetFullscreenState(false, nullptr);
 
 #define SAFE_RELEASE(P) {if(P){P->Release(); P=nullptr;}}
 
@@ -1380,7 +1408,6 @@ bool DEMO_APP::ShutDown()
 	SAFE_RELEASE(device);
 	SAFE_RELEASE(context);
 	SAFE_RELEASE(rtv);
-	SAFE_RELEASE(rtv2);
 	SAFE_RELEASE(vertexShader);
 	SAFE_RELEASE(pixelShader);
 	SAFE_RELEASE(input);
@@ -1435,9 +1462,65 @@ bool DEMO_APP::ShutDown()
 	return true;
 }
 
+
 //************************************************************
 //************ WINDOWS RELATED *******************************
 //************************************************************
+
+
+void DEMO_APP::Resize()
+{
+	// check to make sure somethign is in the swapchain
+	if (swapchain == nullptr)
+	{
+		return;
+	}
+	else
+	{
+		context->OMSetRenderTargets(0, 0, 0);
+
+		//rtv->Release();
+
+		HRESULT hr;
+
+		hr = swapchain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
+
+		ID3D11Texture2D *resizeBuffer;
+
+		hr = swapchain->GetBuffer(0, __uuidof(resizeBuffer), (void**)&resizeBuffer);
+
+		hr = device->CreateRenderTargetView(resizeBuffer, NULL, &rtv);
+
+		resizeBuffer->Release();
+		context->OMSetRenderTargets(1, &rtv, NULL);
+
+		RECT windowResize;
+
+		GetWindowRect(window, &windowResize);
+
+
+		ZeroMemory(&viewport, sizeof(D3D11_VIEWPORT));
+
+		viewport.Width = (windowResize.right-windowResize.left) * 0.5f;
+		viewport.Height = (windowResize.bottom - windowResize.top);
+		viewport.MaxDepth = 1;
+		viewport.MinDepth = 0;
+
+
+		context->RSSetViewports(1, &viewport);
+
+		ZeroMemory(&viewport2, sizeof(D3D11_VIEWPORT));
+
+		viewport2.Width = (windowResize.right - windowResize.left)*0.5f;
+		viewport2.Height = (windowResize.bottom - windowResize.top);
+		viewport2.MaxDepth = 1;
+		viewport2.MinDepth = 0;
+		viewport2.TopLeftX = (windowResize.right - windowResize.left)*0.5f;
+		viewport2.TopLeftY = 0;
+
+		context->RSSetViewports(1, &viewport2);
+	}
+}
 
 // ****************** BEGIN WARNING ***********************// 
 // WINDOWS CODE, I DON'T TEACH THIS YOU MUST KNOW IT ALREADY!
@@ -1447,9 +1530,11 @@ LRESULT CALLBACK WndProc(HWND hWnd,	UINT message, WPARAM wparam, LPARAM lparam )
 int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE, LPTSTR, int )
 {
 	srand(unsigned int(time(0)));
-	DEMO_APP myApp(hInstance,(WNDPROC)WndProc);	
+	//DEMO_APP myApp(hInstance,(WNDPROC)WndProc);
+	// create the singleton with the information created in the initializeing function
+	DEMO_APP::singleton()->DEMO_APP_Creation(hInstance, (WNDPROC)WndProc);
     MSG msg; ZeroMemory( &msg, sizeof( msg ) );
-    while ( msg.message != WM_QUIT && myApp.Run() )
+    while ( msg.message != WM_QUIT && DEMO_APP::singleton()->Run() )
     {	
 	    if ( PeekMessage( &msg, NULL, 0, 0, PM_REMOVE ) )
         { 
@@ -1457,7 +1542,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE, LPTSTR, int )
             DispatchMessage( &msg ); 
         }
     }
-	myApp.ShutDown(); 
+	DEMO_APP::singleton()->ShutDown();
 	return 0; 
 }
 LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
@@ -1468,7 +1553,10 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
     {
         case ( WM_DESTROY ): { PostQuitMessage( 0 ); }
         break;
+		case(WM_SIZE): {DEMO_APP::singleton()->Resize(); }
+		break;
     }
+
     return DefWindowProc( hWnd, message, wParam, lParam );
 }
 //********************* END WARNING ************************//
