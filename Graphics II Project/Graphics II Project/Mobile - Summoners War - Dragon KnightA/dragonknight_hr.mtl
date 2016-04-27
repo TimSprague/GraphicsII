@@ -1,0 +1,40 @@
+newmtl dragonknight_hr-water
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 0.0
+map_Kd dragonknight_hr-water.png
+map_d dragonknight_hr-water.png
+
+newmtl dragonknight_hr-fire
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 0.0
+map_Kd dragonknight_hr-fire.png
+map_d dragonknight_hr-fire.png
+
+newmtl dragonknight_hr-wind
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 0.0
+map_Kd dragonknight_hr-wind.png
+map_d dragonknight_hr-wind.png
+
+newmtl dragonknight_hr-light
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 0.0
+map_Kd dragonknight_hr-light.png
+map_d dragonknight_hr-light.png
+
+newmtl dragonknight_hr-dark
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 0.0
+map_Kd dragonknight_hr-dark.png
+map_d dragonknight_hr-dark.png
+

@@ -1,0 +1,40 @@
+newmtl legenddragon-water
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 0.0
+map_Kd legenddragon-water.png
+map_d legenddragon-water.png
+
+newmtl legenddragon-fire
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 0.0
+map_Kd legenddragon-fire.png
+map_d legenddragon-fire.png
+
+newmtl legenddragon-wind
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 0.0
+map_Kd legenddragon-wind.png
+map_d legenddragon-wind.png
+
+newmtl legenddragon-light
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 0.0
+map_Kd legenddragon-light.png
+map_d legenddragon-light.png
+
+newmtl legenddragon-dark
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 0.0
+map_Kd legenddragon-dark.png
+map_d legenddragon-dark.png
+

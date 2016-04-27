@@ -15,6 +15,8 @@ public:
 		float3 pos;
 		float3 uv;
 		float3 normal;
+		float3 tanget;
+		float3 bitangent;
 	};
 	vector<vertex_Normal> uniqueVerts;
 	vector<unsigned int> uniqueIndexBuffer;
@@ -23,6 +25,7 @@ public:
 	~Model();
 
 
-	bool loadOBJ(const char *path, vector<float3> & out_verticies, vector<float3> & out_uvs, vector<float3> & out_normals);
+	void loadOBJ(const char *path/*, vector<float3> & out_verticies, vector<float3> & out_uvs, vector<float3> & out_normals*/);
+	void CalculateTangents(vector<Model::vertex_Normal> _uniqueVerts, vector<unsigned int> _uniqueIndex);
 };
 

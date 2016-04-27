@@ -10,7 +10,7 @@ Model::~Model()
 {
 }
 
-bool Model::loadOBJ(const char *path, vector<float3> & out_verticies, vector<float3> & out_uvs, vector<float3> & out_normals)
+void Model::loadOBJ(const char *path/*, vector<float3> & out_verticies, vector<float3> & out_uvs, vector<float3> & out_normals*/)
 {
 	vector<unsigned int> vertexIndices, uvIndices, normalIndices;
 	vector<float3> temp_vertices, temp_normals, temp_uvs;
@@ -20,7 +20,7 @@ bool Model::loadOBJ(const char *path, vector<float3> & out_verticies, vector<flo
 	if (file == nullptr)
 	{
 		cout << "Impossible to open file !/n";
-		return false;
+		return;
 	}
 
 	while (true)
@@ -44,7 +44,9 @@ bool Model::loadOBJ(const char *path, vector<float3> & out_verticies, vector<flo
 		{
 			float3 uv;
 			fscanf_s(file, "%f %f\n", &uv.x, &uv.y);
+			// changes from left hand system to right hand system
 			uv.y = 1.0f - uv.y;
+
 			temp_uvs.push_back(uv);
 		}
 		else if (strcmp(lineHeader, "vn") == 0)
@@ -78,31 +80,37 @@ bool Model::loadOBJ(const char *path, vector<float3> & out_verticies, vector<flo
 	{
 		unsigned int VertexIndex = vertexIndices[i];
 		float3 tempVertex = temp_vertices[VertexIndex - 1];
-		out_verticies.push_back(tempVertex);
+		//out_verticies.push_back(tempVertex);
 	}
 	for (unsigned int i = 0; i < uvIndices.size(); i++)
 	{
 		unsigned int uvIndex = uvIndices[i];
 		float3 tempUV = temp_uvs[uvIndex - 1];
-		out_uvs.push_back(tempUV);
+		//out_uvs.push_back(tempUV);
 	}
 	for (unsigned int i = 0; i < normalIndices.size(); i++)
 	{
 		unsigned int normalsIndex = normalIndices[i];
 		float3 tempNormal = temp_normals[normalsIndex - 1];
-		out_normals.push_back(tempNormal);
+		//out_normals.push_back(tempNormal);
 	}
 	vector<float3> tempUnique;
+	vector<float3> tempUniqueUV;
 	for (unsigned int i = 0; i < vertexIndices.size(); i++)
 	{
 		unsigned int vertexIndex = vertexIndices[i];
+		unsigned int uvIndex = uvIndices[i];
+		unsigned int normIndex = normalIndices[i];
 		float3 tempVertex = temp_vertices[vertexIndex - 1];
+		float3 tempUV = temp_uvs[uvIndex - 1];
+		float3 tempNorm = temp_normals[normIndex - 1];
 		unique = true;
 		for (unsigned int j = 0; j < uniqueVerts.size(); j++)
 		{
 			float3 uniqueIndex = tempUnique[j];
-			// check for like positions and then
-			if (tempVertex.x == uniqueIndex.x && tempVertex.y == uniqueIndex.y && tempVertex.z == uniqueIndex.z)
+			float3 uniqueUV = tempUniqueUV[j];
+			// check for like positions and then check for unique UV'S as well .... figure this out NOW
+			if (tempVertex.x == uniqueIndex.x && tempVertex.y == uniqueIndex.y && tempVertex.z == uniqueIndex.z && tempUV.x == uniqueUV.x && tempUV.y == uniqueUV.y )
 			{
 				// set unique to false
 				unique = false;
@@ -118,6 +126,7 @@ bool Model::loadOBJ(const char *path, vector<float3> & out_verticies, vector<flo
 			// add the current value into the index buffer that is pointing to the point inside /the /uniqueVert to find the correct pos
 			uniqueIndexBuffer.push_back(uniqueVerts.size());
 			tempUnique.push_back(tempVertex);
+			tempUniqueUV.push_back(tempUV);
 			// build unique verticies vector
 			vertex_Normal tempUniqueVertex;
 			tempUniqueVertex.pos = temp_vertices[vertexIndices[i] - 1];
@@ -128,3 +137,40 @@ bool Model::loadOBJ(const char *path, vector<float3> & out_verticies, vector<flo
 	}
 
 }
+
+//void Model::CalculateTangents(vector<Model::vertex_Normal> _uniqueVerts, vector<unsigned int> _uniqueIndex)
+//{
+//	for (unsigned int i = 0; i < _uniqueVerts.size(); i++)
+//	{
+//		float3 v0 = _uniqueVerts[i + 0].pos;
+//		float3 v1 = _uniqueVerts[i + 1].pos;
+//		float3 v2 = _uniqueVerts[i + 2].pos;
+//
+//		float3 uv0 = _uniqueVerts[i + 0].uv;
+//		float3 uv1 = _uniqueVerts[i + 1].uv;
+//		float3 uv2 = _uniqueVerts[i + 2].uv;
+//
+//		float3 deltaPos1 = { (v1.x - v0.x), (v1.y - v0.y), (v1.z - v0.z) };
+//		float3 deltaPos2 = { (v2.x - v0.x),(v2.y - v0.y),(v2.z - v0.z) };
+//
+//		float3 deltaUV1 = { (uv1.x - uv0.x),(uv1.y - uv0.y),(uv1.z - uv0.z) };
+//		float3 deltaUV2 = { (uv2.x - uv0.x),(uv2.y - uv0.y),(uv2.z - uv0.z) };
+//
+//		float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
+//
+//		Model::vertex_Normal temp;
+//		temp.tanget = { deltaPos1.x * deltaUV2.y - deltaPos2.x * deltaUV1.y ,deltaPos1.y*deltaUV2.y - deltaPos2.y*deltaUV1.y, deltaPos1.z*deltaUV2.y - deltaPos2.z*deltaUV1.y };
+//		temp.tanget = { temp.tanget.x*r,temp.tanget.y*r,temp.tanget.z*r };
+//
+//		temp.bitangent = { deltaPos2.x * deltaUV1.y - deltaPos1.x * deltaUV2.y ,deltaPos2.y*deltaUV1.y - deltaPos1.y*deltaUV2.y, deltaPos2.z*deltaUV1.y - deltaPos1.z*deltaUV2.y };
+//		temp.bitangent = { temp.bitangent.x*r,temp.bitangent.y*r,temp.bitangent.z*r };
+//
+//		temp.pos = _uniqueVerts[i].pos;
+//		temp.normal = _uniqueVerts[i].normal;
+//		temp.uv = _uniqueVerts[i].uv;
+//
+//
+//
+//		
+//	}
+//}
